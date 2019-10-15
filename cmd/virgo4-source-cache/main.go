@@ -48,6 +48,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// create the message processing channel
+	processChan := make(chan awssqs.Message, cfg.WorkerQueueSize)
+
+	// start workers here
+	for w := 1; w <= cfg.Workers; w++ {
+		go worker(w, *cfg, rc, processChan)
+	}
+
+	total := 0
+
 	for {
 
 		//log.Printf("Waiting for messages...")
@@ -66,47 +76,25 @@ func main() {
 			//log.Printf("Received %d messages", len( result.Messages ) )
 
 			for _, m := range messages {
-				// trust these values exist for now
+				processChan <- m
+			}
 
-				// key
-				mID, _ := m.GetAttribute("id")
-				mType, _ := m.GetAttribute("type")
-				mSource, _ := m.GetAttribute("source")
+			// delete them all (might want to only delete ones that were stored successfully)
+			opStatus, err := aws.BatchMessageDelete(inQueueHandle, messages)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-				// fields
-				var fieldMap = map[string]interface{}{
-					"type":    mType,
-					"source":  mSource,
-					"payload": string(m.Payload),
-				}
-
-				log.Printf("storing id [%s] with type [%s] and source [%s]...", mID, mType, mSource)
-
-				rcErr := rc.HMSet(mID, fieldMap).Err()
-
-				if rcErr != nil {
-					log.Fatal(rcErr)
+			// check the operation results
+			for ix, op := range opStatus {
+				if op == false {
+					log.Printf("WARNING: message %d failed to delete", ix)
 				}
 			}
 
-			/*
-				// delete them all (might want to only delete ones that were stored successfully)
-				opStatus, err := aws.BatchMessageDelete(inQueueHandle, messages)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				// check the operation results
-				for ix, op := range opStatus {
-					if op == false {
-						log.Printf("WARNING: message %d failed to delete", ix)
-					}
-				}
-			*/
-
 			duration := time.Since(start)
-			log.Printf("Cached %d records (%0.2f tps)", sz, float64(sz)/duration.Seconds())
-
+			total = total + sz
+			log.Printf("Cached %d records (%0.2f tps)  [total records: %d]", sz, float64(sz)/duration.Seconds(), total)
 		} else {
 			log.Printf("No messages received...")
 		}
