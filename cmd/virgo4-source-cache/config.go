@@ -11,8 +11,10 @@ type ServiceConfig struct {
 	InQueueName       string
 	MessageBucketName string
 	PollTimeOut       int64
-	WorkerQueueSize   int
 	Workers           int
+	WorkerQueueSize   int
+	WorkerFlushTime   int
+	RedisPipelineSize int
 	RedisHost         string
 	RedisPort         int
 	RedisPass         string
@@ -42,12 +44,13 @@ func ensureSetAndNonEmpty(env string) string {
 }
 
 func envToInt(env string) int {
-
 	number := ensureSetAndNonEmpty(env)
+
 	n, err := strconv.Atoi(number)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return n
 }
 
@@ -62,8 +65,10 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.InQueueName = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_IN_QUEUE")
 	cfg.MessageBucketName = ensureSetAndNonEmpty("VIRGO4_SQS_MESSAGE_BUCKET")
 	cfg.PollTimeOut = int64(envToInt("VIRGO4_SOURCE_CACHE_POLL_TIMEOUT"))
-	cfg.WorkerQueueSize = envToInt("VIRGO4_SOURCE_CACHE_WORKER_QUEUE_SIZE")
 	cfg.Workers = envToInt("VIRGO4_SOURCE_CACHE_WORKERS")
+	cfg.WorkerQueueSize = envToInt("VIRGO4_SOURCE_CACHE_WORKER_QUEUE_SIZE")
+	cfg.WorkerFlushTime = envToInt("VIRGO4_SOURCE_CACHE_WORKER_FLUSH_TIME")
+	cfg.RedisPipelineSize = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PIPELINE_SIZE")
 	cfg.RedisHost = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_REDIS_HOST")
 	cfg.RedisPort = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PORT")
 	cfg.RedisPass = ensureSet("VIRGO4_SOURCE_CACHE_REDIS_PASS")
@@ -72,8 +77,10 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[CONFIG] InQueueName       = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] MessageBucketName = [%s]", cfg.MessageBucketName)
 	log.Printf("[CONFIG] PollTimeOut       = [%d]", cfg.PollTimeOut)
-	log.Printf("[CONFIG] WorkerQueueSize   = [%d]", cfg.WorkerQueueSize)
 	log.Printf("[CONFIG] Workers           = [%d]", cfg.Workers)
+	log.Printf("[CONFIG] WorkerQueueSize   = [%d]", cfg.WorkerQueueSize)
+	log.Printf("[CONFIG] WorkerFlushTime   = [%d]", cfg.WorkerFlushTime)
+	log.Printf("[CONFIG] RedisPipelineSize = [%d]", cfg.RedisPipelineSize)
 	log.Printf("[CONFIG] RedisHost         = [%s]", cfg.RedisHost)
 	log.Printf("[CONFIG] RedisPort         = [%d]", cfg.RedisPort)
 	log.Printf("[CONFIG] RedisPass         = [REDACTED]")

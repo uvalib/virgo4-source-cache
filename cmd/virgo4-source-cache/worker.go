@@ -2,54 +2,47 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-func worker(id int, config ServiceConfig, rc *redis.Client, messages <-chan awssqs.Message) {
+func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.Message) {
+	rp := newPipeline(rc, id, cfg.RedisPipelineSize)
+
 	count := uint(0)
 
+	flushAfter := time.Duration(cfg.WorkerFlushTime) * time.Second
+
 	for {
-		msg, more := <-messages
+		// process a message or wait...
+		select {
+		case msg, more := <-messages:
+			if more == false {
+				rp.flushRecords()
+				break
+			}
 
-		if more == false {
-			return
+			// new message to process; add it to pipeline
+
+			// queue record; pipeline will self-flush if full
+			rp.queueRecord(msg)
+
+			count++
+
+			if count % 10 == 0 {
+				log.Printf("Worker %d processed %d records", id, count)
+			}
+			break
+
+		case <-time.After(flushAfter):
+			rp.flushRecords()
+			break
 		}
-
-		// process this message
-		cacheRecord(rc, msg)
-
-		count++
-
-		log.Printf("worker %d processed %d messages", id, count)
 	}
 
 	// should never get here
-}
-
-func cacheRecord(rc *redis.Client, m awssqs.Message) {
-	// trust these values exist for now
-
-	// key
-	mID, _ := m.GetAttribute("id")
-	mType, _ := m.GetAttribute("type")
-	mSource, _ := m.GetAttribute("source")
-
-	// fields
-	var fieldMap = map[string]interface{}{
-		"type":    mType,
-		"source":  mSource,
-		"payload": string(m.Payload),
-	}
-
-	//log.Printf("storing id [%s] with type [%s] and source [%s]...", mID, mType, mSource)
-
-	err := rc.HMSet(mID, fieldMap).Err()
-
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 //
