@@ -31,8 +31,8 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 
 			count++
 
-			if count % 10 == 0 {
-				log.Printf("Worker %d processed %d records", id, count)
+			if count % 1000 == 0 {
+				log.Printf("worker %d processed %d records", id, count)
 			}
 			break
 

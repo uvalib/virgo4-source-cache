@@ -15,7 +15,7 @@ import (
 //
 func main() {
 
-	log.Printf("===> %s service starting up <===", os.Args[0])
+	log.Printf("===> %s service staring up (version: %s) <===", os.Args[0], Version())
 
 	// Get config params and use them to init service context. Any issues are fatal
 	cfg := LoadConfiguration()
@@ -73,7 +73,7 @@ func main() {
 		sz := len(messages)
 		if sz != 0 {
 
-			log.Printf("Received %d messages", sz)
+			//log.Printf("Received %d messages", sz)
 
 			for _, m := range messages {
 				processChan <- m
@@ -92,9 +92,11 @@ func main() {
 				}
 			}
 
-			duration := time.Since(start)
 			total = total + sz
-			log.Printf("Cached %d records (%0.2f tps)  [total records: %d]", sz, float64(sz)/duration.Seconds(), total)
+			if total%1000 == 0 {
+				duration := time.Since(start)
+				log.Printf("queued %d records (%0.2f tps)", total, float64(sz)/duration.Seconds())
+			}
 		} else {
 			log.Printf("No messages received...")
 		}
