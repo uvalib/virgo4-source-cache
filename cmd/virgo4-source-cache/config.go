@@ -19,6 +19,7 @@ type ServiceConfig struct {
 	RedisPort         int
 	RedisPass         string
 	RedisDB           int
+	RedisTimeout      int // the redis connect/read/write timeout in seconds
 }
 
 func ensureSet(env string) string {
@@ -73,6 +74,7 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.RedisPort = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PORT")
 	cfg.RedisPass = ensureSet("VIRGO4_SOURCE_CACHE_REDIS_PASS")
 	cfg.RedisDB = envToInt("VIRGO4_SOURCE_CACHE_REDIS_DB")
+	cfg.RedisTimeout = envToInt("VIRGO4_SOURCE_CACHE_REDIS_TIMEOUT")
 
 	log.Printf("[CONFIG] InQueueName       = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] MessageBucketName = [%s]", cfg.MessageBucketName)
@@ -85,6 +87,7 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[CONFIG] RedisPort         = [%d]", cfg.RedisPort)
 	log.Printf("[CONFIG] RedisPass         = [REDACTED]")
 	log.Printf("[CONFIG] RedisDB           = [%d]", cfg.RedisDB)
+	log.Printf("[CONFIG] RedisTimeout      = [%d]", cfg.RedisTimeout)
 
 	return &cfg
 }

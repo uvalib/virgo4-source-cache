@@ -35,9 +35,9 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 
 			count++
 
-			if count % 1000 == 0 {
+			if count%1000 == 0 {
 				duration := time.Since(start)
-				log.Printf("worker %d processed %d records (%0.2f tps)", id, count, float64(count)/duration.Seconds())
+				log.Printf("worker %d pipelined %d records (%0.2f tps)", id, count, float64(count)/duration.Seconds())
 			}
 			break
 

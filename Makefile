@@ -1,11 +1,13 @@
-GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
-GOTEST=$(GOCMD) test
+GOCMD = go
+GOBUILD = $(GOCMD) build
+GOCLEAN = $(GOCMD) clean
+GOTEST = $(GOCMD) test
 GOGET = $(GOCMD) get
 GOMOD = $(GOCMD) mod
-PACKAGENAME=virgo4-source-cache
-BINNAME=$(PACKAGENAME)
+GOFMT = $(GOCMD) fmt
+GOVET = $(GOCMD) vet
+PACKAGENAME = virgo4-source-cache
+BINNAME = $(PACKAGENAME)
 
 build: darwin 
 
@@ -25,3 +27,9 @@ dep:
 	cd cmd/$(PACKAGENAME); $(GOGET) -u
 	$(GOMOD) tidy
 	$(GOMOD) verify
+
+fmt:
+	cd cmd/$(PACKAGENAME); $(GOFMT)
+
+vet:
+	cd cmd/$(PACKAGENAME); $(GOVET)

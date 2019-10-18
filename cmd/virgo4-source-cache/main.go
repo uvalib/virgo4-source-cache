@@ -35,9 +35,12 @@ func main() {
 	// connect to redis instance
 	redisHost := fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort)
 	redisOpts := redis.Options{
-		Addr:     redisHost,
-		DB:       cfg.RedisDB,
-		Password: cfg.RedisPass,
+		DialTimeout:  time.Duration(cfg.RedisTimeout) * time.Second,
+		WriteTimeout: time.Duration(cfg.RedisTimeout) * time.Second,
+		Addr:         redisHost,
+		DB:           cfg.RedisDB,
+		Password:     cfg.RedisPass,
+		PoolSize:     cfg.Workers,
 	}
 
 	rc := redis.NewClient(&redisOpts)

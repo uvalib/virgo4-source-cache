@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
@@ -11,18 +12,18 @@ import (
 const pipelineCommands = 10
 
 type redisPipeline struct {
-	id int
-	pipe redis.Pipeliner
+	id     int
+	pipe   redis.Pipeliner
 	queued int
-	limit int
+	limit  int
 }
 
-func newPipeline (rc *redis.Client, workerID int, pipelineSize int) *redisPipeline {
+func newPipeline(rc *redis.Client, workerID int, pipelineSize int) *redisPipeline {
 	rp := redisPipeline{
-		id: workerID,
-		pipe: rc.TxPipeline(),
+		id:     workerID,
+		pipe:   rc.TxPipeline(),
 		queued: 0,
-		limit: pipelineSize,
+		limit:  pipelineSize,
 	}
 
 	return &rp
@@ -59,13 +60,15 @@ func (rp *redisPipeline) flushRecords() {
 		return
 	}
 
-	log.Printf("worker %d flushing %d records...", rp.id, rp.queued)
-
+	start := time.Now()
 	_, err := rp.pipe.Exec()
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	duration := time.Since(start)
+	log.Printf("worker %d flushed %d records (%0.2f tps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
 
 	rp.queued = 0
 }
