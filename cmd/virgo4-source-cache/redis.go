@@ -12,18 +12,21 @@ import (
 const pipelineCommands = 10
 
 type redisPipeline struct {
-	id     int
-	pipe   redis.Pipeliner
-	queued int
-	limit  int
+	id         int
+	pipe       redis.Pipeliner
+	queued     int
+	limit      int
+	messages   []awssqs.Message
+	deleteChan chan<- []awssqs.Message
 }
 
-func newPipeline(rc *redis.Client, workerID int, pipelineSize int) *redisPipeline {
+func newPipeline(rc *redis.Client, workerID int, pipelineSize int, deleteChan chan<- []awssqs.Message) *redisPipeline {
 	rp := redisPipeline{
-		id:     workerID,
-		pipe:   rc.TxPipeline(),
-		queued: 0,
-		limit:  pipelineSize,
+		id:         workerID,
+		pipe:       rc.TxPipeline(),
+		queued:     0,
+		limit:      pipelineSize,
+		deleteChan: deleteChan,
 	}
 
 	return &rp
@@ -50,6 +53,8 @@ func (rp *redisPipeline) queueRecord(msg awssqs.Message) {
 
 	rp.queued++
 
+	rp.messages = append(rp.messages, msg)
+
 	if rp.queued >= rp.limit {
 		rp.flushRecords()
 	}
@@ -71,6 +76,10 @@ func (rp *redisPipeline) flushRecords() {
 	log.Printf("worker %d flushed %d records (%0.2f tps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
 
 	rp.queued = 0
+
+	rp.deleteChan <- rp.messages
+
+	rp.messages = nil
 }
 
 //

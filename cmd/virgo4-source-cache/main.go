@@ -51,12 +51,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// create the message deletion channel
+	// FIXME: determine a good buffer size for this channel, which will be determined by:
+	// * how many delete workers
+	// * how fast the delete workers can delete messages
+	deleteChan := make(chan []awssqs.Message, cfg.WorkerQueueSize)
+
 	// create the message processing channel
 	processChan := make(chan awssqs.Message, cfg.WorkerQueueSize)
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, rc, processChan)
+		go deleter(w, *cfg, aws, inQueueHandle, deleteChan)
+		go worker(w, *cfg, rc, processChan, deleteChan)
 	}
 
 	total := 0
@@ -80,21 +87,6 @@ func main() {
 
 			for _, m := range messages {
 				processChan <- m
-			}
-
-			// delete them all (might want to only delete ones that were stored successfully)
-			opStatus, err := aws.BatchMessageDelete(inQueueHandle, messages)
-			if err != nil {
-				if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
-					log.Fatal(err)
-				}
-			}
-
-			// check the operation results
-			for ix, op := range opStatus {
-				if op == false {
-					log.Printf("WARNING: message %d failed to delete", ix)
-				}
 			}
 
 			total = total + sz
