@@ -14,6 +14,7 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 	count := uint(0)
 
 	flushAfter := time.Duration(cfg.WorkerFlushTime) * time.Second
+	start := time.Now()
 
 	for {
 		// process a message or wait...
@@ -21,6 +22,9 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 		case msg, more := <-messages:
 			if more == false {
 				rp.flushRecords()
+
+				// reset the start time when we have no more records
+				start = time.Now()
 				break
 			}
 
@@ -32,7 +36,8 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 			count++
 
 			if count % 1000 == 0 {
-				log.Printf("worker %d processed %d records", id, count)
+				duration := time.Since(start)
+				log.Printf("worker %d processed %d records (%0.2f tps)", id, count, float64(count)/duration.Seconds())
 			}
 			break
 

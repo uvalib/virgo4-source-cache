@@ -82,7 +82,9 @@ func main() {
 			// delete them all (might want to only delete ones that were stored successfully)
 			opStatus, err := aws.BatchMessageDelete(inQueueHandle, messages)
 			if err != nil {
-				log.Fatal(err)
+				if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+					log.Fatal(err)
+				}
 			}
 
 			// check the operation results
