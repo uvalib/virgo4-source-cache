@@ -36,20 +36,34 @@ func (rp *redisPipeline) queueRecord(msg awssqs.Message) {
 	// trust these values exist for now
 
 	// key
-	msgID, _ := msg.GetAttribute("id")
-	msgType, _ := msg.GetAttribute("type")
-	msgSource, _ := msg.GetAttribute("source")
+	msgID, _ := msg.GetAttribute(awssqs.AttributeKeyRecordId)
+	msgType, _ := msg.GetAttribute(awssqs.AttributeKeyRecordType)
+	msgSource, _ := msg.GetAttribute(awssqs.AttributeKeyRecordSource)
+	msgOperation, _ := msg.GetAttribute(awssqs.AttributeKeyRecordOperation)
 
-	// fields
-	var fieldMap = map[string]interface{}{
-		"type":    msgType,
-		"source":  msgSource,
-		"payload": string(msg.Payload),
+	switch msgOperation {
+	case awssqs.AttributeValueRecordOperationUpdate:
+
+		var fieldMap = map[string]interface{}{
+			"type":    msgType,
+			"source":  msgSource,
+			"payload": string(msg.Payload),
+		}
+
+		//log.Printf("queueing id [%s] for [%s] with type [%s] and source [%s]...", msgID, msgOperation, msgType, msgSource)
+
+		rp.pipe.HMSet(msgID, fieldMap)
+
+	case awssqs.AttributeValueRecordOperationDelete:
+
+		//log.Printf("queueing id [%s] for [%s]...", msgID, msgOperation)
+
+		rp.pipe.Del(msgID)
+
+	default:
+		// ignore?
+		return
 	}
-
-	//log.Printf("queueing id [%s] with type [%s] and source [%s]...", msgID, msgType, msgSource)
-
-	rp.pipe.HMSet(msgID, fieldMap)
 
 	rp.queued++
 
