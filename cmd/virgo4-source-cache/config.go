@@ -14,6 +14,8 @@ type ServiceConfig struct {
 	Workers           int
 	WorkerQueueSize   int
 	WorkerFlushTime   int
+	Deleters          int
+	DeleteQueueSize   int
 	RedisPipelineSize int
 	RedisHost         string
 	RedisPort         int
@@ -69,6 +71,8 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.Workers = envToInt("VIRGO4_SOURCE_CACHE_WORKERS")
 	cfg.WorkerQueueSize = envToInt("VIRGO4_SOURCE_CACHE_WORKER_QUEUE_SIZE")
 	cfg.WorkerFlushTime = envToInt("VIRGO4_SOURCE_CACHE_WORKER_FLUSH_TIME")
+	cfg.Deleters = envToInt("VIRGO4_SOURCE_CACHE_DELETERS")
+	cfg.DeleteQueueSize = envToInt("VIRGO4_SOURCE_CACHE_DELETE_QUEUE_SIZE")
 	cfg.RedisPipelineSize = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PIPELINE_SIZE")
 	cfg.RedisHost = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_REDIS_HOST")
 	cfg.RedisPort = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PORT")
