@@ -65,7 +65,18 @@ func main() {
 
 	total := 0
 
+	showBacklog := false
+
 	for {
+		if showBacklog == true {
+			processBacklog := len(processChan)
+			deleteBacklog := len(deleteChan)
+			if processBacklog > 0 || deleteBacklog > 0 {
+				log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
+			}
+			showBacklog = false
+		}
+
 		//log.Printf("[main] waiting for messages...")
 		start := time.Now()
 
@@ -89,11 +100,11 @@ func main() {
 			if total%1000 == 0 {
 				duration := time.Since(start)
 				log.Printf("[main] queued %d records (%0.2f tps)", total, float64(sz)/duration.Seconds())
-				log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
+				showBacklog = true
 			}
 		} else {
 			log.Printf("[main] no messages received")
-			log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
+			showBacklog = true
 		}
 	}
 }
