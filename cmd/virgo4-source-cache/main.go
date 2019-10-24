@@ -66,8 +66,6 @@ func main() {
 	total := 0
 
 	for {
-		log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
-
 		//log.Printf("[main] waiting for messages...")
 		start := time.Now()
 
@@ -91,9 +89,11 @@ func main() {
 			if total%1000 == 0 {
 				duration := time.Since(start)
 				log.Printf("[main] queued %d records (%0.2f tps)", total, float64(sz)/duration.Seconds())
+				log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
 			}
 		} else {
 			log.Printf("[main] no messages received")
+			log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
 		}
 	}
 }
