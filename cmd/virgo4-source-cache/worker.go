@@ -22,7 +22,7 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 		case msg, ok := <-messages:
 			if ok == false {
 				// channel was closed
-				log.Printf("worker %d: channel closed; flushing pending cache writes", id)
+				log.Printf("[process] worker %d: channel closed; flushing pending cache writes", id)
 				rp.flushRecords()
 				return
 			}
@@ -36,7 +36,7 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 
 			if count%1000 == 0 {
 				duration := time.Since(start)
-				log.Printf("worker %d: pipelined %d records (%0.2f tps)", id, count, float64(count)/duration.Seconds())
+				log.Printf("[process] worker %d: pipelined %d records (%0.2f tps)", id, count, float64(count)/duration.Seconds())
 			}
 			break
 
@@ -50,31 +50,36 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 }
 
 func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <-chan []awssqs.Message) {
-	groupCount := uint(0)
-	messageCount := uint(0)
+	totalGroupCount := uint(0)
+	totalMessageCount := uint(0)
 
-	start := time.Now()
+	overallStart := time.Now()
 
 	for {
 		msgs, ok := <-messages
 
 		if ok == false {
 			// channel was closed
-			log.Printf("deleter %d: channel closed", id)
+			log.Printf("[delete] deleter %d: channel closed", id)
 			return
 		}
+
+		thisStart := time.Now()
 
 		if err := batchDelete(id, aws, queue, msgs); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		groupCount++
-		messageCount = messageCount + uint(len(msgs))
+		overallDuration := time.Since(overallStart)
+		thisDuration := time.Since(thisStart)
 
-		if groupCount%1000 == 0 {
-			duration := time.Since(start)
-			log.Printf("deleter %d: deleted %d message groups containing %d messages (%0.2f tps)", id, groupCount, messageCount, float64(groupCount)/duration.Seconds())
-		}
+		messageCount := uint(len(msgs))
+		totalGroupCount++
+		totalMessageCount = totalMessageCount + messageCount
+
+		log.Printf("[delete] deleter %d: deleted group of %d messages (%0.2f tps); overall: %d groups / %d messages (%0.2f tps)",
+			id, messageCount, float64(messageCount)/thisDuration.Seconds(),
+			totalGroupCount, totalMessageCount, float64(totalMessageCount)/overallDuration.Seconds())
 	}
 
 	// should never get here
@@ -128,7 +133,7 @@ func batchDelete(id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages 
 	}
 
 	duration := time.Since(start)
-	log.Printf("deleter %d: batch delete completed in %0.2f seconds", id, duration.Seconds())
+	log.Printf("[delete] deleter %d: batch delete of %d messages completed in %0.2f seconds", id, count, duration.Seconds())
 
 	return nil
 }

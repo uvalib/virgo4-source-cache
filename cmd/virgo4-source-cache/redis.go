@@ -50,13 +50,13 @@ func (rp *redisPipeline) queueRecord(msg awssqs.Message) {
 			"payload": string(msg.Payload),
 		}
 
-		//log.Printf("queueing id [%s] for [%s] with type [%s] and source [%s]...", msgID, msgOperation, msgType, msgSource)
+		//log.Printf("[redis] queueing id [%s] for [%s] with type [%s] and source [%s]...", msgID, msgOperation, msgType, msgSource)
 
 		rp.pipe.HMSet(msgID, fieldMap)
 
 	case awssqs.AttributeValueRecordOperationDelete:
 
-		//log.Printf("queueing id [%s] for [%s]...", msgID, msgOperation)
+		//log.Printf("[redis] queueing id [%s] for [%s]...", msgID, msgOperation)
 
 		rp.pipe.Del(msgID)
 
@@ -87,7 +87,7 @@ func (rp *redisPipeline) flushRecords() {
 	}
 
 	duration := time.Since(start)
-	log.Printf("worker %d flushed %d records (%0.2f tps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
+	log.Printf("[redis] worker %d flushed %d records (%0.2f tps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
 
 	rp.queued = 0
 

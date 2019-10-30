@@ -15,7 +15,7 @@ import (
 //
 func main() {
 
-	log.Printf("===> %s service staring up (version: %s) <===", os.Args[0], Version())
+	log.Printf("===> %s service starting up (version: %s) <===", os.Args[0], Version())
 
 	// Get config params and use them to init service context. Any issues are fatal
 	cfg := LoadConfiguration()
@@ -51,26 +51,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// create the message deletion channel
-	// FIXME: determine a good buffer size for this channel, which will be determined by:
-	// * how many delete workers
-	// * how fast the delete workers can delete messages
-	deleteChan := make(chan []awssqs.Message, cfg.WorkerQueueSize)
+	// create the message deletion channel and start deleters
+	deleteChan := make(chan []awssqs.Message, cfg.DeleteQueueSize)
+	for d := 1; d <= cfg.Deleters; d++ {
+		go deleter(d, *cfg, aws, inQueueHandle, deleteChan)
+	}
 
-	// create the message processing channel
+	// create the message processing channel and start workers
 	processChan := make(chan awssqs.Message, cfg.WorkerQueueSize)
-
-	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
-		go deleter(w, *cfg, aws, inQueueHandle, deleteChan)
 		go worker(w, *cfg, rc, processChan, deleteChan)
 	}
 
 	total := 0
 
-	for {
+	showBacklog := false
 
-		//log.Printf("Waiting for messages...")
+	for {
+		if showBacklog == true {
+			processBacklog := len(processChan)
+			deleteBacklog := len(deleteChan)
+			if processBacklog > 0 || deleteBacklog > 0 {
+				log.Printf("[main] backlog: process = %d, delete = %d", len(processChan), len(deleteChan))
+			}
+			showBacklog = false
+		}
+
+		//log.Printf("[main] waiting for messages...")
 		start := time.Now()
 
 		// wait for a batch of messages
@@ -83,7 +90,7 @@ func main() {
 		sz := len(messages)
 		if sz != 0 {
 
-			//log.Printf("Received %d messages", sz)
+			//log.Printf("[main] received %d messages", sz)
 
 			for _, m := range messages {
 				processChan <- m
@@ -92,10 +99,12 @@ func main() {
 			total = total + sz
 			if total%1000 == 0 {
 				duration := time.Since(start)
-				log.Printf("queued %d records (%0.2f tps)", total, float64(sz)/duration.Seconds())
+				log.Printf("[main] queued %d records (%0.2f tps)", total, float64(sz)/duration.Seconds())
+				showBacklog = true
 			}
 		} else {
-			log.Printf("No messages received...")
+			log.Printf("[main] no messages received")
+			showBacklog = true
 		}
 	}
 }
