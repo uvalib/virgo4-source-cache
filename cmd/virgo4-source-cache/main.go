@@ -10,6 +10,11 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
+type cacheMessage struct {
+	message  awssqs.Message // the message
+	received time.Time      // when it was read from the queue
+}
+
 //
 // main entry point
 //
@@ -52,13 +57,13 @@ func main() {
 	}
 
 	// create the message deletion channel and start deleters
-	deleteChan := make(chan []awssqs.Message, cfg.DeleteQueueSize)
+	deleteChan := make(chan []cacheMessage, cfg.DeleteQueueSize)
 	for d := 1; d <= cfg.Deleters; d++ {
 		go deleter(d, *cfg, aws, inQueueHandle, deleteChan)
 	}
 
 	// create the message processing channel and start workers
-	processChan := make(chan awssqs.Message, cfg.WorkerQueueSize)
+	processChan := make(chan cacheMessage, cfg.WorkerQueueSize)
 	for w := 1; w <= cfg.Workers; w++ {
 		go worker(w, *cfg, rc, processChan, deleteChan)
 	}
@@ -86,6 +91,8 @@ func main() {
 			log.Fatal(err)
 		}
 
+		received := time.Now()
+
 		// did we receive any?
 		sz := len(messages)
 		if sz != 0 {
@@ -93,7 +100,12 @@ func main() {
 			//log.Printf("[main] received %d messages", sz)
 
 			for _, m := range messages {
-				processChan <- m
+				c := cacheMessage{
+					message:  m,
+					received: received,
+				}
+
+				processChan <- c
 			}
 
 			total = total + sz

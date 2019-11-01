@@ -8,7 +8,7 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.Message, deleteChan chan<- []awssqs.Message) {
+func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cacheMessage, deleteChan chan<- []cacheMessage) {
 	rp := newPipeline(rc, id, cfg.RedisPipelineSize, deleteChan)
 
 	count := uint(0)
@@ -19,7 +19,7 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 	for {
 		// process a message or wait...
 		select {
-		case msg, ok := <-messages:
+		case msg, ok := <-messageChan:
 			if ok == false {
 				// channel was closed
 				log.Printf("[process] worker %d: channel closed; flushing pending cache writes", id)
@@ -49,14 +49,14 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messages <-chan awssqs.
 	// should never get here
 }
 
-func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <-chan []awssqs.Message) {
+func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messageChan <-chan []cacheMessage) {
 	totalGroupCount := uint(0)
 	totalMessageCount := uint(0)
 
 	overallStart := time.Now()
 
 	for {
-		msgs, ok := <-messages
+		msgs, ok := <-messageChan
 
 		if ok == false {
 			// channel was closed
@@ -85,7 +85,7 @@ func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHa
 	// should never get here
 }
 
-func batchDelete(id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []awssqs.Message) error {
+func batchDelete(id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []cacheMessage) error {
 	// ensure there is work to do
 	count := uint(len(messages))
 	if count == 0 {
@@ -138,10 +138,22 @@ func batchDelete(id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages 
 	return nil
 }
 
-func blockDelete(aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []awssqs.Message) error {
+func blockDelete(aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []cacheMessage) error {
+	var msgs []awssqs.Message
+
+	for _, msg := range messages {
+		msgs = append(msgs, msg.message)
+
+		duration := time.Since(msg.received).Seconds()
+
+		if duration > 60 {
+			msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
+			log.Printf("[delete] WARNING: message %s being deleted after %0.2f seconds", msgID, duration)
+		}
+	}
 
 	// delete the block
-	opStatus, err := aws.BatchMessageDelete(queue, messages)
+	opStatus, err := aws.BatchMessageDelete(queue, msgs)
 	if err != nil {
 		if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
 			return err

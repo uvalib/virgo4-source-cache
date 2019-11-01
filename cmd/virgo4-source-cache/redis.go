@@ -16,11 +16,11 @@ type redisPipeline struct {
 	pipe       redis.Pipeliner
 	queued     int
 	limit      int
-	messages   []awssqs.Message
-	deleteChan chan<- []awssqs.Message
+	messages   []cacheMessage
+	deleteChan chan<- []cacheMessage
 }
 
-func newPipeline(rc *redis.Client, workerID int, pipelineSize int, deleteChan chan<- []awssqs.Message) *redisPipeline {
+func newPipeline(rc *redis.Client, workerID int, pipelineSize int, deleteChan chan<- []cacheMessage) *redisPipeline {
 	rp := redisPipeline{
 		id:         workerID,
 		pipe:       rc.TxPipeline(),
@@ -32,14 +32,14 @@ func newPipeline(rc *redis.Client, workerID int, pipelineSize int, deleteChan ch
 	return &rp
 }
 
-func (rp *redisPipeline) queueRecord(msg awssqs.Message) {
+func (rp *redisPipeline) queueRecord(msg cacheMessage) {
 	// trust these values exist for now
 
 	// key
-	msgID, _ := msg.GetAttribute(awssqs.AttributeKeyRecordId)
-	msgType, _ := msg.GetAttribute(awssqs.AttributeKeyRecordType)
-	msgSource, _ := msg.GetAttribute(awssqs.AttributeKeyRecordSource)
-	msgOperation, _ := msg.GetAttribute(awssqs.AttributeKeyRecordOperation)
+	msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
+	msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
+	msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
+	msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
 
 	switch msgOperation {
 	case awssqs.AttributeValueRecordOperationUpdate:
@@ -47,7 +47,7 @@ func (rp *redisPipeline) queueRecord(msg awssqs.Message) {
 		var fieldMap = map[string]interface{}{
 			"type":    msgType,
 			"source":  msgSource,
-			"payload": string(msg.Payload),
+			"payload": string(msg.message.Payload),
 		}
 
 		//log.Printf("[redis] queueing id [%s] for [%s] with type [%s] and source [%s]...", msgID, msgOperation, msgType, msgSource)
