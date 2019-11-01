@@ -68,9 +68,12 @@ func main() {
 		go worker(w, *cfg, rc, processChan, deleteChan)
 	}
 
-	total := 0
+	batchTotal := 0
+	overallTotal := 0
 
 	showBacklog := false
+
+	var batchStart time.Time
 
 	for {
 		if showBacklog == true {
@@ -82,9 +85,6 @@ func main() {
 			showBacklog = false
 		}
 
-		//log.Printf("[main] waiting for messages...")
-		start := time.Now()
-
 		// wait for a batch of messages
 		messages, err := aws.BatchMessageGet(inQueueHandle, awssqs.MAX_SQS_BLOCK_COUNT, time.Duration(cfg.PollTimeOut)*time.Second)
 		if err != nil {
@@ -95,9 +95,14 @@ func main() {
 
 		// did we receive any?
 		sz := len(messages)
-		if sz != 0 {
-
+		if sz > 0 {
 			//log.Printf("[main] received %d messages", sz)
+
+			// tracking a new batch?  (groups of messages received close together)
+			if batchTotal == 0 {
+				batchStart = received
+				log.Printf("[main] batch: tracking new batch")
+			}
 
 			for _, m := range messages {
 				c := cacheMessage{
@@ -106,16 +111,31 @@ func main() {
 				}
 
 				processChan <- c
-			}
 
-			total = total + sz
-			if total%1000 == 0 {
-				duration := time.Since(start)
-				log.Printf("[main] queued %d records (%0.2f tps)", total, float64(sz)/duration.Seconds())
-				showBacklog = true
+				batchTotal++
+				overallTotal++
+
+				// show batch totals periodically, along with overall timings
+				if batchTotal%1000 == 0 {
+					duration := time.Since(batchStart)
+					log.Printf("[main] batch: queued %d messages (%0.2f mps)", batchTotal, float64(sz)/duration.Seconds())
+				}
+
+				// show overall totals periodically.  timings don't really make sense here
+				if overallTotal%1000 == 0 {
+					log.Printf("[main] overall: queued %d messages", overallTotal)
+					showBacklog = true
+				}
 			}
 		} else {
+			// if the end of a batch, show totals and timing (if we haven't already)
+			if batchTotal > 0 && batchTotal%1000 != 0 {
+				duration := time.Since(batchStart)
+				log.Printf("[main] batch: queued %d messages (%0.2f mps)", batchTotal, float64(sz)/duration.Seconds())
+			}
+
 			log.Printf("[main] no messages received")
+			batchTotal = 0
 			showBacklog = true
 		}
 	}

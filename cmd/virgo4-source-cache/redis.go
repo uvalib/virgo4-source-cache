@@ -87,7 +87,7 @@ func (rp *redisPipeline) flushRecords() {
 	}
 
 	duration := time.Since(start)
-	log.Printf("[redis] worker %d flushed %d records (%0.2f tps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
+	log.Printf("[redis] worker %d flushed %d messages (%0.2f mps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
 
 	rp.queued = 0
 
