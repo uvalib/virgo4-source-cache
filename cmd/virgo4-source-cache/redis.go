@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
@@ -79,15 +78,18 @@ func (rp *redisPipeline) flushRecords() {
 		return
 	}
 
-	start := time.Now()
+	flush := newRate()
+	flush.setCount(int64(rp.queued))
+
 	_, err := rp.pipe.Exec()
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	duration := time.Since(start)
-	log.Printf("[redis] worker %d flushed %d messages (%0.2f mps)", rp.id, rp.queued, float64(rp.queued)/duration.Seconds())
+	flush.setStopNow()
+
+	log.Printf("[redis] worker %d flushed %d messages (%0.2f mps)", rp.id, flush.count, flush.getRate())
 
 	rp.queued = 0
 

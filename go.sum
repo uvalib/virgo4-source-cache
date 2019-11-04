@@ -1,7 +1,7 @@
 github.com/aws/aws-sdk-go v1.25.16 h1:k7Fy6T/uNuLX6zuayU/TJoP7yMgGcJSkZpF7QVjwYpA=
 github.com/aws/aws-sdk-go v1.25.16/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
-github.com/aws/aws-sdk-go v1.25.21 h1:ikvfTGgl09JB7LBK7V4RldG7q07SoSdFO5Kq1QZOWkM=
-github.com/aws/aws-sdk-go v1.25.21/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/aws/aws-sdk-go v1.25.26 h1:hMrxW3feteaGcP32oKaFdCQsCEWYf9zF12g73C0AcbI=
+github.com/aws/aws-sdk-go v1.25.26/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
@@ -26,8 +26,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
-github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191022142704-678d19090c2c h1:W3wy15LrFMDcTc1hgZ8D7JA5uouZfvZaqxenf8iQM8g=
-github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191022142704-678d19090c2c/go.mod h1:ILLArP6Vbwzpixc0o+KGg892DrmxsHbJym5QIMsQl00=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191029194011-1116c77e63dc h1:kq19g3+mSCErarc2hB1HzeWTLB7OuoadmQwczy972pU=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191029194011-1116c77e63dc/go.mod h1:ILLArP6Vbwzpixc0o+KGg892DrmxsHbJym5QIMsQl00=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20180906233101-161cd47e91fd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab h1:h5tBRKZ1aY/bo6GNqe/4zWC8GkaLOFQ5wPKIOQ0i2sA=

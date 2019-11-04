@@ -11,7 +11,7 @@ import (
 func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cacheMessage, deleteChan chan<- []cacheMessage) {
 	rp := newPipeline(rc, id, cfg.RedisPipelineSize, deleteChan)
 
-	count := uint(0)
+	processed := newRate()
 
 	flushAfter := time.Duration(cfg.WorkerFlushTime) * time.Second
 
@@ -31,10 +31,10 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cach
 			// queue record; pipeline will self-flush if full
 			rp.queueRecord(msg)
 
-			count++
+			processed.incrementCount()
 
-			if count%1000 == 0 {
-				log.Printf("[process] worker %d: pipelined %d records", id, count)
+			if processed.count%1000 == 0 {
+				log.Printf("[process] worker %d: pipelined %d records", id, processed.count)
 			}
 			break
 
@@ -48,8 +48,8 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cach
 }
 
 func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messageChan <-chan []cacheMessage) {
-	totalGroupCount := uint(0)
-	totalMessageCount := uint(0)
+	overallGroups := newRate()
+	overallMessages := newRate()
 
 	for {
 		msgs, ok := <-messageChan
@@ -60,21 +60,21 @@ func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHa
 			return
 		}
 
-		start := time.Now()
+		batch := newRate()
 
 		if err := batchDelete(id, aws, queue, msgs); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		duration := time.Since(start)
+		batch.setStopNow()
+		batch.setCount(int64(len(msgs)))
 
-		messageCount := uint(len(msgs))
-		totalGroupCount++
-		totalMessageCount = totalMessageCount + messageCount
+		overallGroups.incrementCount()
+		overallMessages.addCount(batch.count)
 
-		log.Printf("[delete] deleter %d: batch: deleted group of %d messages (%0.2f mps)", id, messageCount, float64(messageCount)/duration.Seconds())
+		log.Printf("[delete] deleter %d: batch: deleted group of %d messages (%0.2f mps)", id, batch.count, batch.getRate())
 
-		log.Printf("[delete] deleter %d: overall: deleted %d groups totaling %d messages", id, totalGroupCount, totalMessageCount)
+		log.Printf("[delete] deleter %d: overall: deleted %d groups totaling %d messages", id, overallGroups.count, overallMessages.count)
 	}
 
 	// should never get here

@@ -68,12 +68,12 @@ func main() {
 		go worker(w, *cfg, rc, processChan, deleteChan)
 	}
 
-	batchTotal := 0
-	overallTotal := 0
+	batch := newRate()
+	overall := newRate()
 
 	showBacklog := false
 
-	var batchStart time.Time
+	pollTimeout := time.Duration(cfg.PollTimeOut) * time.Second
 
 	for {
 		if showBacklog == true {
@@ -86,7 +86,7 @@ func main() {
 		}
 
 		// wait for a batch of messages
-		messages, err := aws.BatchMessageGet(inQueueHandle, awssqs.MAX_SQS_BLOCK_COUNT, time.Duration(cfg.PollTimeOut)*time.Second)
+		messages, err := aws.BatchMessageGet(inQueueHandle, awssqs.MAX_SQS_BLOCK_COUNT, pollTimeout)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -99,8 +99,8 @@ func main() {
 			//log.Printf("[main] received %d messages", sz)
 
 			// tracking a new batch?  (groups of messages received close together)
-			if batchTotal == 0 {
-				batchStart = received
+			if batch.count == 0 {
+				batch.setStart(received)
 				log.Printf("[main] batch: tracking new batch")
 			}
 
@@ -112,30 +112,30 @@ func main() {
 
 				processChan <- c
 
-				batchTotal++
-				overallTotal++
+				batch.incrementCount()
+				overall.incrementCount()
 
 				// show batch totals periodically, along with overall timings
-				if batchTotal%1000 == 0 {
-					duration := time.Since(batchStart)
-					log.Printf("[main] batch: queued %d messages (%0.2f mps)", batchTotal, float64(sz)/duration.Seconds())
+				if batch.count%1000 == 0 {
+					log.Printf("[main] batch: queued %d messages (%0.2f mps)", batch.count, batch.getCurrentRate())
 				}
 
 				// show overall totals periodically.  timings don't really make sense here
-				if overallTotal%1000 == 0 {
-					log.Printf("[main] overall: queued %d messages", overallTotal)
+				if overall.count%1000 == 0 {
+					log.Printf("[main] overall: queued %d messages", overall.count)
 					showBacklog = true
 				}
 			}
+
+			batch.setStopNow()
 		} else {
 			// if the end of a batch, show totals and timing (if we haven't already)
-			if batchTotal > 0 && batchTotal%1000 != 0 {
-				duration := time.Since(batchStart)
-				log.Printf("[main] batch: queued %d messages (%0.2f mps)", batchTotal, float64(sz)/duration.Seconds())
+			if batch.count > 0 && batch.count%1000 != 0 {
+				log.Printf("[main] batch: queued %d messages (%0.2f mps)", batch.count, batch.getRate())
 			}
 
 			log.Printf("[main] no messages received")
-			batchTotal = 0
+			batch = newRate()
 			showBacklog = true
 		}
 	}
