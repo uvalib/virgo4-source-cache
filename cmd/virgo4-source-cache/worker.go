@@ -138,7 +138,7 @@ func blockDelete(aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []cacheM
 
 		if duration > 60 {
 			msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
-			log.Printf("[delete] WARNING: message %s being deleted after %0.2f seconds", msgID, duration)
+			log.Printf("[delete] batch: [%s] WARNING: message %s being deleted after %0.2f seconds", msg.batchID, msgID, duration)
 		}
 	}
 

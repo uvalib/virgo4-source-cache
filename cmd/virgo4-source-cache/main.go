@@ -13,6 +13,7 @@ import (
 type cacheMessage struct {
 	message  awssqs.Message // the message
 	received time.Time      // when it was read from the queue
+	batchID  string         // label for this batch, for tracing purposes
 }
 
 //
@@ -71,6 +72,8 @@ func main() {
 	batch := newRate()
 	overall := newRate()
 
+	var batchID string
+
 	showBacklog := false
 
 	pollTimeout := time.Duration(cfg.PollTimeOut) * time.Second
@@ -101,13 +104,19 @@ func main() {
 			// tracking a new batch?  (groups of messages received close together)
 			if batch.count == 0 {
 				batch.setStart(received)
-				log.Printf("[main] batch: tracking new batch")
+
+				batchID = fmt.Sprintf("%d%02d%02d%02d%02d%02d",
+					batch.start.Year(), batch.start.Month(), batch.start.Day(),
+					batch.start.Hour(), batch.start.Minute(), batch.start.Second())
+
+				log.Printf("[main] batch: [%s] tracking new batch", batchID)
 			}
 
 			for _, m := range messages {
 				c := cacheMessage{
 					message:  m,
 					received: received,
+					batchID:  batchID,
 				}
 
 				processChan <- c
@@ -117,7 +126,7 @@ func main() {
 
 				// show batch totals periodically, along with overall timings
 				if batch.count%1000 == 0 {
-					log.Printf("[main] batch: queued %d messages (%0.2f mps)", batch.count, batch.getCurrentRate())
+					log.Printf("[main] batch: [%s] queued %d messages (%0.2f mps)", batchID, batch.count, batch.getCurrentRate())
 				}
 
 				// show overall totals periodically.  timings don't really make sense here
@@ -131,7 +140,7 @@ func main() {
 		} else {
 			// if the end of a batch, show totals and timing (if we haven't already)
 			if batch.count > 0 && batch.count%1000 != 0 {
-				log.Printf("[main] batch: queued %d messages (%0.2f mps)", batch.count, batch.getRate())
+				log.Printf("[main] batch: [%s] queued %d messages (%0.2f mps)", batchID, batch.count, batch.getRate())
 			}
 
 			log.Printf("[main] no messages received")
