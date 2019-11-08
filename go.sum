@@ -33,6 +33,8 @@ github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJy
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191029194011-1116c77e63dc h1:kq19g3+mSCErarc2hB1HzeWTLB7OuoadmQwczy972pU=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191029194011-1116c77e63dc/go.mod h1:ILLArP6Vbwzpixc0o+KGg892DrmxsHbJym5QIMsQl00=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191108143651-fa049b1d0df4 h1:8J1SfH2HEqe+oH4ysPU5boPi8viRD60KHvHq870aawY=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191108143651-fa049b1d0df4/go.mod h1:s3zVOu5KBNEwD0+B7SSm1mXICCBLHkF2pXCmoO1gNhQ=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20180906233101-161cd47e91fd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab h1:h5tBRKZ1aY/bo6GNqe/4zWC8GkaLOFQ5wPKIOQ0i2sA=
