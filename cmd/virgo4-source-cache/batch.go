@@ -13,6 +13,8 @@ package main
 		  Upon receipt of these values, DynamoDB decodes the data into an unsigned byte array and uses that as
 		  the length of the binary attribute.
 
+	* truncated table definition:
+
 {
     "Table": {
         "AttributeDefinitions": [
@@ -29,8 +31,6 @@ package main
         ],
     }
 }
-
-
 */
 
 import (
@@ -143,13 +143,11 @@ func (b *batchTransaction) writeMessagesToCache() {
 
 	//log.Printf("BatchWriteItemInput: %s", req.GoString())
 
-	res, err := b.cache.handle.BatchWriteItem(req)
+	_, err := b.cache.handle.BatchWriteItem(req)
 
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	//log.Printf("BatchWriteItemOutput: %s", res.GoString())
 }
 
 func (b *batchTransaction) flushRecords() {
