@@ -4,12 +4,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cacheMessage, deleteChan chan<- []cacheMessage) {
-	rp := newPipeline(rc, id, cfg.RedisPipelineSize, deleteChan)
+func worker(id int, cfg ServiceConfig, cache *cacheService, messageChan <-chan cacheMessage, deleteChan chan<- []cacheMessage) {
+	bx := newBatchTransaction(id, cache, deleteChan)
 
 	processed := newRate()
 
@@ -22,14 +21,14 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cach
 			if ok == false {
 				// channel was closed
 				log.Printf("[process] worker %d: channel closed; flushing pending cache writes", id)
-				rp.flushRecords()
+				bx.flushRecords()
 				return
 			}
 
 			// new message to process; add it to pipeline
 
 			// queue record; pipeline will self-flush if full
-			rp.queueRecord(msg)
+			bx.queueRecord(msg)
 
 			processed.incrementCount()
 
@@ -39,7 +38,7 @@ func worker(id int, cfg ServiceConfig, rc *redis.Client, messageChan <-chan cach
 			break
 
 		case <-time.After(flushAfter):
-			rp.flushRecords()
+			bx.flushRecords()
 			break
 		}
 	}
