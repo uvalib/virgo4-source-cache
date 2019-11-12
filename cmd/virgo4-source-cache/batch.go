@@ -44,6 +44,7 @@ import (
 type batchTransaction struct {
 	id         int
 	cache      *cacheService
+	keyMap     map[string]bool
 	queued     int
 	messages   []cacheMessage
 	deleteChan chan<- []cacheMessage
@@ -53,6 +54,7 @@ func newBatchTransaction(id int, cache *cacheService, deleteChan chan<- []cacheM
 	b := batchTransaction{
 		id:         id,
 		cache:      cache,
+		keyMap:     make(map[string]bool),
 		queued:     0,
 		deleteChan: deleteChan,
 	}
@@ -61,6 +63,17 @@ func newBatchTransaction(id int, cache *cacheService, deleteChan chan<- []cacheM
 }
 
 func (b *batchTransaction) queueRecord(msg cacheMessage) {
+	// check for duplicate keys, and flush current batch if found (BatchWriteItem doesn't allow duplicates)
+
+	msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
+
+	if b.keyMap[msgID] == true {
+		log.Printf("[dynamodb] WARNING: received duplicate key: [%s]", msgID)
+		b.flushRecords()
+	}
+
+	b.keyMap[msgID] = true
+
 	b.queued++
 
 	b.messages = append(b.messages, msg)
@@ -169,6 +182,8 @@ func (b *batchTransaction) flushRecords() {
 	b.deleteChan <- b.messages
 
 	b.messages = nil
+
+	b.keyMap = make(map[string]bool)
 }
 
 //
