@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
@@ -14,6 +15,12 @@ type cacheMessage struct {
 	message  awssqs.Message // the message
 	received time.Time      // when it was read from the queue
 	batchID  string         // label for this batch, for tracing purposes
+}
+
+type cacheService struct {
+	handle *dynamodb.DynamoDB
+	table  string
+	size   int
 }
 
 //
@@ -27,46 +34,35 @@ func main() {
 	cfg := LoadConfiguration()
 
 	// load our AWS_SQS helper object
-	aws, err := awssqs.NewAwsSqs(awssqs.AwsSqsConfig{MessageBucketName: cfg.MessageBucketName})
+	v4sqs, err := awssqs.NewAwsSqs(awssqs.AwsSqsConfig{MessageBucketName: cfg.MessageBucketName})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// get the queue handles from the queue name
-	inQueueHandle, err := aws.QueueHandle(cfg.InQueueName)
+	inQueueHandle, err := v4sqs.QueueHandle(cfg.InQueueName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// connect to redis instance
-	redisHost := fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort)
-	redisOpts := redis.Options{
-		DialTimeout:  time.Duration(cfg.RedisTimeout) * time.Second,
-		WriteTimeout: time.Duration(cfg.RedisTimeout) * time.Second,
-		Addr:         redisHost,
-		DB:           cfg.RedisDB,
-		Password:     cfg.RedisPass,
-		PoolSize:     cfg.Workers,
-	}
+	// connect to dynamodb
 
-	rc := redis.NewClient(&redisOpts)
-
-	// see if the connection is good
-	_, err = rc.Ping().Result()
-	if err != nil {
-		log.Fatal(err)
+	db := cacheService{
+		handle: dynamodb.New(session.Must(session.NewSession())),
+		table:  cfg.DynamoDBTable,
+		size:   cfg.DynamoDBBatchSize,
 	}
 
 	// create the message deletion channel and start deleters
 	deleteChan := make(chan []cacheMessage, cfg.DeleteQueueSize)
 	for d := 1; d <= cfg.Deleters; d++ {
-		go deleter(d, *cfg, aws, inQueueHandle, deleteChan)
+		go deleter(d, *cfg, v4sqs, inQueueHandle, deleteChan)
 	}
 
 	// create the message processing channel and start workers
 	processChan := make(chan cacheMessage, cfg.WorkerQueueSize)
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, rc, processChan, deleteChan)
+		go worker(w, *cfg, &db, processChan, deleteChan)
 	}
 
 	batch := newRate()
@@ -89,7 +85,7 @@ func main() {
 		}
 
 		// wait for a batch of messages
-		messages, err := aws.BatchMessageGet(inQueueHandle, awssqs.MAX_SQS_BLOCK_COUNT, pollTimeout)
+		messages, err := v4sqs.BatchMessageGet(inQueueHandle, awssqs.MAX_SQS_BLOCK_COUNT, pollTimeout)
 		if err != nil {
 			log.Fatal(err)
 		}

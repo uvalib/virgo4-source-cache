@@ -16,12 +16,8 @@ type ServiceConfig struct {
 	WorkerFlushTime   int
 	Deleters          int
 	DeleteQueueSize   int
-	RedisPipelineSize int
-	RedisHost         string
-	RedisPort         int
-	RedisPass         string
-	RedisDB           int
-	RedisTimeout      int // the redis connect/read/write timeout in seconds
+	DynamoDBTable     string
+	DynamoDBBatchSize int
 }
 
 func ensureSet(env string) string {
@@ -73,12 +69,13 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.WorkerFlushTime = envToInt("VIRGO4_SOURCE_CACHE_WORKER_FLUSH_TIME")
 	cfg.Deleters = envToInt("VIRGO4_SOURCE_CACHE_DELETERS")
 	cfg.DeleteQueueSize = envToInt("VIRGO4_SOURCE_CACHE_DELETE_QUEUE_SIZE")
-	cfg.RedisPipelineSize = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PIPELINE_SIZE")
-	cfg.RedisHost = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_REDIS_HOST")
-	cfg.RedisPort = envToInt("VIRGO4_SOURCE_CACHE_REDIS_PORT")
-	cfg.RedisPass = ensureSet("VIRGO4_SOURCE_CACHE_REDIS_PASS")
-	cfg.RedisDB = envToInt("VIRGO4_SOURCE_CACHE_REDIS_DB")
-	cfg.RedisTimeout = envToInt("VIRGO4_SOURCE_CACHE_REDIS_TIMEOUT")
+	cfg.DynamoDBTable = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_DYNAMODB_TABLE")
+	cfg.DynamoDBBatchSize = envToInt("VIRGO4_SOURCE_CACHE_DYNAMODB_BATCH_SIZE")
+
+	// AWS max is 25
+	if cfg.DynamoDBBatchSize > 25 {
+		cfg.DynamoDBBatchSize = 25
+	}
 
 	log.Printf("[CONFIG] InQueueName       = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] MessageBucketName = [%s]", cfg.MessageBucketName)
@@ -86,12 +83,10 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[CONFIG] Workers           = [%d]", cfg.Workers)
 	log.Printf("[CONFIG] WorkerQueueSize   = [%d]", cfg.WorkerQueueSize)
 	log.Printf("[CONFIG] WorkerFlushTime   = [%d]", cfg.WorkerFlushTime)
-	log.Printf("[CONFIG] RedisPipelineSize = [%d]", cfg.RedisPipelineSize)
-	log.Printf("[CONFIG] RedisHost         = [%s]", cfg.RedisHost)
-	log.Printf("[CONFIG] RedisPort         = [%d]", cfg.RedisPort)
-	log.Printf("[CONFIG] RedisPass         = [REDACTED]")
-	log.Printf("[CONFIG] RedisDB           = [%d]", cfg.RedisDB)
-	log.Printf("[CONFIG] RedisTimeout      = [%d]", cfg.RedisTimeout)
+	log.Printf("[CONFIG] Deleters          = [%d]", cfg.Deleters)
+	log.Printf("[CONFIG] DeleteQueueSize   = [%d]", cfg.DeleteQueueSize)
+	log.Printf("[CONFIG] DynamoDBTable     = [%s]", cfg.DynamoDBTable)
+	log.Printf("[CONFIG] DynamoDBBatchSize = [%d]", cfg.DynamoDBBatchSize)
 
 	return &cfg
 }
