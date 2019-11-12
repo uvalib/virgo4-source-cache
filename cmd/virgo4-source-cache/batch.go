@@ -68,7 +68,7 @@ func (b *batchTransaction) queueRecord(msg cacheMessage) {
 	msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
 
 	if b.keyMap[msgID] == true {
-		log.Printf("[dynamodb] WARNING: received duplicate key: [%s]", msgID)
+		log.Printf("[dynamodb] worker %d: WARNING: received duplicate key: [%s]", b.id, msgID)
 		b.flushRecords()
 	}
 
@@ -97,7 +97,7 @@ func (b *batchTransaction) createItemRequest(msg cacheMessage) *dynamodb.WriteRe
 	switch msgOperation {
 	case awssqs.AttributeValueRecordOperationUpdate:
 
-		//log.Printf("[dynamodb] putting id [%s] for [%s] with type [%s] and source [%s]...", msgID, msgOperation, msgType, msgSource)
+		//log.Printf("[dynamodb] worker %d: putting id [%s] for [%s] with type [%s] and source [%s]...", b.id, msgID, msgOperation, msgType, msgSource)
 
 		req = &dynamodb.WriteRequest{
 			PutRequest: &dynamodb.PutRequest{
@@ -120,7 +120,7 @@ func (b *batchTransaction) createItemRequest(msg cacheMessage) *dynamodb.WriteRe
 
 	case awssqs.AttributeValueRecordOperationDelete:
 
-		//log.Printf("[dynamodb] queueing id [%s] for [%s]...", msgID, msgOperation)
+		//log.Printf("[dynamodb] worker %d: queueing id [%s] for [%s]...", b.id, msgID, msgOperation)
 
 		req = &dynamodb.WriteRequest{
 			DeleteRequest: &dynamodb.DeleteRequest{
@@ -154,12 +154,27 @@ func (b *batchTransaction) writeMessagesToCache() {
 		},
 	}
 
-	//log.Printf("BatchWriteItemInput: %s", req.GoString())
+	//log.Printf("[dynamodb] worker %d: BatchWriteItemInput: %s", b.id, req.GoString())
 
 	_, err := b.cache.handle.BatchWriteItem(req)
 
 	if err != nil {
+		b.logBatchInfo()
 		log.Fatal(err.Error())
+	}
+}
+
+func (b *batchTransaction) logBatchInfo() {
+	log.Printf("[dynamodb] worker %d: batch info: %d messages:", b.id, len(b.messages))
+
+	for i, msg := range b.messages {
+		msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
+		msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
+		msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
+		msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
+
+		log.Printf("[dynamodb] worker %d: message %2d: id = [%s]  type = [%s]  source = [%s]  operation = [%s]  len(payload) = %d",
+			b.id, i, msgID, msgType, msgSource, msgOperation, len(msg.message.Payload))
 	}
 }
 
@@ -175,7 +190,7 @@ func (b *batchTransaction) flushRecords() {
 
 	flush.setStopNow()
 
-	log.Printf("[dynamodb] worker %d flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
+	log.Printf("[dynamodb] worker %d: flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
 
 	b.queued = 0
 
