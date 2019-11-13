@@ -152,8 +152,11 @@ func main() {
 			batch.setStopNow()
 		} else {
 			// if the end of a batch, show totals and timing (if we haven't already)
-			if batch.count > 0 && batch.count%1000 != 0 {
-				log.Printf("[main] batch: [%s] queued %d messages (%0.2f mps)", batchID, batch.count, batch.getRate())
+			if batch.count > 0 {
+				if batch.count%1000 != 0 {
+					log.Printf("[main] batch: [%s] queued %d messages (%0.2f mps)", batchID, batch.count, batch.getRate())
+				}
+				log.Printf("[main] overall: queued %d messages", overall.count)
 			}
 
 			log.Printf("[main] no messages received")

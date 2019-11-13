@@ -154,15 +154,16 @@ func countMapToString(countMap map[string]int) string {
 	s := []string{}
 
 	for k, v := range countMap {
-		s = append(s, fmt.Sprintf("[%s]: %d", k, v))
+		s = append(s, fmt.Sprintf("%s (%d)", k, v))
 	}
 
 	sort.Strings(s)
 
-	return strings.Join(s, ", ")
+	return strings.Join(s, "; ")
 }
 
 func (b *batchTransaction) logBatchSummary() {
+	idCounts := make(map[string]int)
 	typeCounts := make(map[string]int)
 	sourceCounts := make(map[string]int)
 	operationCounts := make(map[string]int)
@@ -171,10 +172,12 @@ func (b *batchTransaction) logBatchSummary() {
 	maxPayload := math.MinInt32
 
 	for _, msg := range b.messages {
+		msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
 		msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
 		msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
 		msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
 
+		idCounts[msgID]++
 		typeCounts[msgType]++
 		sourceCounts[msgSource]++
 		operationCounts[msgOperation]++
@@ -192,16 +195,18 @@ func (b *batchTransaction) logBatchSummary() {
 	sourceStr := countMapToString(sourceCounts)
 	operationStr := countMapToString(operationCounts)
 
-	log.Printf("[cache] worker %d: batch summary:", b.id)
-	log.Printf("[cache] worker %d: messages: %d", b.id, len(b.messages))
-	log.Printf("[cache] worker %d: payloads: min = %d bytes, max = %d bytes", b.id, minPayload, maxPayload)
-	log.Printf("[cache] worker %d: operations: %s", b.id, operationStr)
-	log.Printf("[cache] worker %d: types: %s", b.id, typeStr)
-	log.Printf("[cache] worker %d: sources: %s", b.id, sourceStr)
+	log.Printf("[cache] worker %d: [tx] transaction summary:", b.id)
+	log.Printf("        worker %d: [tx] messages: %d", b.id, len(b.messages))
+	log.Printf("        worker %d: [tx] unique ids: %d", b.id, len(idCounts))
+	log.Printf("        worker %d: [tx] min payload: %d bytes", b.id, minPayload)
+	log.Printf("        worker %d: [tx] max payload: %d bytes", b.id, maxPayload)
+	log.Printf("        worker %d: [tx] operations: %s", b.id, operationStr)
+	log.Printf("        worker %d: [tx] types: %s", b.id, typeStr)
+	log.Printf("        worker %d: [tx] sources: %s", b.id, sourceStr)
 }
 
 func (b *batchTransaction) logBatchDetails() {
-	log.Printf("[cache] worker %d: batch info: %d messages:", b.id, len(b.messages))
+	log.Printf("[cache] worker %d: transaction info: %d messages:", b.id, len(b.messages))
 
 	for i, msg := range b.messages {
 		msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
