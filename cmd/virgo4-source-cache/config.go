@@ -16,8 +16,13 @@ type ServiceConfig struct {
 	WorkerFlushTime   int
 	Deleters          int
 	DeleteQueueSize   int
-	DynamoDBTable     string
-	DynamoDBBatchSize int
+	PostgresHost      string
+	PostgresPort      int
+	PostgresUser      string
+	PostgresPass      string
+	PostgresDatabase  string
+	PostgresTable     string
+	PostgresBatchSize int
 }
 
 func ensureSet(env string) string {
@@ -69,13 +74,13 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.WorkerFlushTime = envToInt("VIRGO4_SOURCE_CACHE_WORKER_FLUSH_TIME")
 	cfg.Deleters = envToInt("VIRGO4_SOURCE_CACHE_DELETERS")
 	cfg.DeleteQueueSize = envToInt("VIRGO4_SOURCE_CACHE_DELETE_QUEUE_SIZE")
-	cfg.DynamoDBTable = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_DYNAMODB_TABLE")
-	cfg.DynamoDBBatchSize = envToInt("VIRGO4_SOURCE_CACHE_DYNAMODB_BATCH_SIZE")
-
-	// AWS max is 25
-	if cfg.DynamoDBBatchSize > 25 {
-		cfg.DynamoDBBatchSize = 25
-	}
+	cfg.PostgresHost = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_POSTGRES_HOST")
+	cfg.PostgresPort = envToInt("VIRGO4_SOURCE_CACHE_POSTGRES_PORT")
+	cfg.PostgresUser = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_POSTGRES_USER")
+	cfg.PostgresPass = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_POSTGRES_PASS")
+	cfg.PostgresDatabase = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_POSTGRES_DATABASE")
+	cfg.PostgresTable = ensureSetAndNonEmpty("VIRGO4_SOURCE_CACHE_POSTGRES_TABLE")
+	cfg.PostgresBatchSize = envToInt("VIRGO4_SOURCE_CACHE_POSTGRES_BATCH_SIZE")
 
 	log.Printf("[CONFIG] InQueueName       = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] MessageBucketName = [%s]", cfg.MessageBucketName)
@@ -85,8 +90,13 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[CONFIG] WorkerFlushTime   = [%d]", cfg.WorkerFlushTime)
 	log.Printf("[CONFIG] Deleters          = [%d]", cfg.Deleters)
 	log.Printf("[CONFIG] DeleteQueueSize   = [%d]", cfg.DeleteQueueSize)
-	log.Printf("[CONFIG] DynamoDBTable     = [%s]", cfg.DynamoDBTable)
-	log.Printf("[CONFIG] DynamoDBBatchSize = [%d]", cfg.DynamoDBBatchSize)
+	log.Printf("[CONFIG] PostgresHost      = [%s]", cfg.PostgresHost)
+	log.Printf("[CONFIG] PostgresPort      = [%d]", cfg.PostgresPort)
+	log.Printf("[CONFIG] PostgresUser      = [%s]", cfg.PostgresUser)
+	log.Printf("[CONFIG] PostgresPass      = [%s]", cfg.PostgresPass)
+	log.Printf("[CONFIG] PostgresDatabase  = [%s]", cfg.PostgresDatabase)
+	log.Printf("[CONFIG] PostgresTable     = [%s]", cfg.PostgresTable)
+	log.Printf("[CONFIG] PostgresBatchSize = [%d]", cfg.PostgresBatchSize)
 
 	return &cfg
 }

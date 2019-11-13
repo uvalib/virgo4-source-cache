@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	dbx "github.com/go-ozzo/ozzo-dbx"
+	_ "github.com/lib/pq"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
@@ -18,7 +18,7 @@ type cacheMessage struct {
 }
 
 type cacheService struct {
-	handle *dynamodb.DynamoDB
+	handle *dbx.DB
 	table  string
 	size   int
 }
@@ -47,10 +47,20 @@ func main() {
 
 	// connect to dynamodb
 
-	db := cacheService{
-		handle: dynamodb.New(session.Must(session.NewSession())),
-		table:  cfg.DynamoDBTable,
-		size:   cfg.DynamoDBBatchSize,
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=disable",
+		cfg.PostgresUser, cfg.PostgresPass, cfg.PostgresDatabase, cfg.PostgresHost, cfg.PostgresPort)
+
+	db, err := dbx.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//db.LogFunc = log.Printf
+
+	cache := cacheService{
+		handle: db,
+		table:  cfg.PostgresTable,
+		size:   cfg.PostgresBatchSize,
 	}
 
 	// create the message deletion channel and start deleters
@@ -62,7 +72,7 @@ func main() {
 	// create the message processing channel and start workers
 	processChan := make(chan cacheMessage, cfg.WorkerQueueSize)
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, &db, processChan, deleteChan)
+		go worker(w, *cfg, &cache, processChan, deleteChan)
 	}
 
 	batch := newRate()

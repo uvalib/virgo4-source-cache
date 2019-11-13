@@ -1,62 +1,57 @@
 package main
 
-/*
-	notes:
-
-	* https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
-		- A single call to BatchWriteItem can write up to 16 MB of data, which can comprise as many
-		  as 25 put or delete requests. Individual items to be written can be as large as 400 KB.
-		- BatchWriteItem cannot update items. To update items, use the UpdateItem action.
-
-	* https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.NamingRulesDataTypes.html
-		- Your applications must encode binary values in base64-encoded format before sending them to DynamoDB.
-		  Upon receipt of these values, DynamoDB decodes the data into an unsigned byte array and uses that as
-		  the length of the binary attribute.
-
-	* truncated table definition:
-
-{
-    "Table": {
-        "AttributeDefinitions": [
-            {
-                "AttributeName": "id",
-                "AttributeType": "S"
-            }
-        ],
-        "KeySchema": [
-            {
-                "KeyType": "HASH",
-                "AttributeName": "id"
-            }
-        ],
-    }
-}
-*/
-
 import (
 	"log"
+	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	dbx "github.com/go-ozzo/ozzo-dbx"
+	_ "github.com/lib/pq"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
+const UPSERT = `
+INSERT
+INTO
+	{:table}
+		(id, type, source, payload, created_at, updated_at)
+VALUES
+	({:id}, {:type}, {:source}, {:payload}, now(), now())
+ON CONFLICT
+	(id)
+DO
+	UPDATE SET
+		(type, source, payload, updated_at)
+			= (EXCLUDED.type, EXCLUDED.source, EXCLUDED.payload, EXCLUDED.updated_at)
+`
+
+const DELETE = `
+DELETE
+FROM
+	{:table}
+WHERE
+	id = {:id}
+`
+
 type batchTransaction struct {
-	id         int
-	cache      *cacheService
-	keyMap     map[string]bool
-	queued     int
-	messages   []cacheMessage
-	deleteChan chan<- []cacheMessage
+	id          int
+	cache       *cacheService
+	keyMap      map[string]bool
+	queued      int
+	messages    []cacheMessage
+	deleteChan  chan<- []cacheMessage
+	upsertQuery string
+	deleteQuery string
 }
 
 func newBatchTransaction(id int, cache *cacheService, deleteChan chan<- []cacheMessage) *batchTransaction {
 	b := batchTransaction{
-		id:         id,
-		cache:      cache,
-		keyMap:     make(map[string]bool),
-		queued:     0,
-		deleteChan: deleteChan,
+		id:          id,
+		cache:       cache,
+		keyMap:      make(map[string]bool),
+		queued:      0,
+		deleteChan:  deleteChan,
+		upsertQuery: strings.Trim(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(UPSERT, "{:table}", cache.table), "\n", " "), "\t", ""), " "),
+		deleteQuery: strings.Trim(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(DELETE, "{:table}", cache.table), "\n", " "), "\t", ""), " "),
 	}
 
 	return &b
@@ -64,12 +59,13 @@ func newBatchTransaction(id int, cache *cacheService, deleteChan chan<- []cacheM
 
 func (b *batchTransaction) queueRecord(msg cacheMessage) {
 	// check for duplicate keys, and flush current batch if found (BatchWriteItem doesn't allow duplicates)
+	// FIXME: is this still needed outside of dynamodb?  assuming no, but let's log dups anyway
 
 	msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
 
 	if b.keyMap[msgID] == true {
-		log.Printf("[dynamodb] worker %d: WARNING: received duplicate key: [%s]", b.id, msgID)
-		b.flushRecords()
+		log.Printf("[cache] worker %d: WARNING: received duplicate key: [%s]", b.id, msgID)
+		//b.flushRecords()
 	}
 
 	b.keyMap[msgID] = true
@@ -83,89 +79,65 @@ func (b *batchTransaction) queueRecord(msg cacheMessage) {
 	}
 }
 
-func (b *batchTransaction) createItemRequest(msg cacheMessage) *dynamodb.WriteRequest {
-	// trust these values exist for now
-
-	// key
-	msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
-	msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
-	msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
-	msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
-
-	var req *dynamodb.WriteRequest
-
-	switch msgOperation {
-	case awssqs.AttributeValueRecordOperationUpdate:
-
-		//log.Printf("[dynamodb] worker %d: putting id [%s] for [%s] with type [%s] and source [%s]...", b.id, msgID, msgOperation, msgType, msgSource)
-
-		req = &dynamodb.WriteRequest{
-			PutRequest: &dynamodb.PutRequest{
-				Item: map[string]*dynamodb.AttributeValue{
-					"id": {
-						S: aws.String(msgID),
-					},
-					"datatype": {
-						S: aws.String(msgType),
-					},
-					"datasource": {
-						S: aws.String(msgSource),
-					},
-					"payload": {
-						B: msg.message.Payload,
-					},
-				},
-			},
-		}
-
-	case awssqs.AttributeValueRecordOperationDelete:
-
-		//log.Printf("[dynamodb] worker %d: queueing id [%s] for [%s]...", b.id, msgID, msgOperation)
-
-		req = &dynamodb.WriteRequest{
-			DeleteRequest: &dynamodb.DeleteRequest{
-				Key: map[string]*dynamodb.AttributeValue{
-					"id": {
-						S: aws.String(msgID),
-					},
-				},
-			},
-		}
-
-	default:
-		// ignore?
-	}
-
-	return req
-}
-
 func (b *batchTransaction) writeMessagesToCache() {
-	var writes []*dynamodb.WriteRequest
+	// execute a transaction
+	err := b.cache.handle.Transactional(func(tx *dbx.Tx) error {
 
-	for _, msg := range b.messages {
-		if write := b.createItemRequest(msg); write != nil {
-			writes = append(writes, write)
+		uq := tx.NewQuery(b.upsertQuery).Prepare()
+		dq := tx.NewQuery(b.deleteQuery).Prepare()
+
+		// execute statements within the transaction
+		for _, msg := range b.messages {
+			msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
+			msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
+			msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
+			msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
+
+			switch msgOperation {
+			case awssqs.AttributeValueRecordOperationUpdate:
+				// ozzo-dbx pgsql Upsert isn't selective on the "conflict update" clause, so we must specify it ourselves
+				_, err := uq.Bind(dbx.Params{
+					"id":      msgID,
+					"type":    msgType,
+					"source":  msgSource,
+					"payload": msg.message.Payload,
+				}).Execute()
+
+				if err != nil {
+					log.Printf("[cache] update execution failed: %s", err.Error())
+					return err
+				}
+
+				//log.Printf("[cache] worker %d: putting id [%s] for [%s] with type [%s] and source [%s]...", b.id, msgID, msgOperation, msgType, msgSource)
+
+			case awssqs.AttributeValueRecordOperationDelete:
+
+				_, err := dq.Bind(dbx.Params{
+					"id": msgID,
+				}).Execute()
+
+				if err != nil {
+					log.Printf("[cache] delete execution failed: %s", err.Error())
+					return err
+				}
+
+				//log.Printf("[cache] worker %d: queueing id [%s] for [%s]...", b.id, msgID, msgOperation)
+
+			default:
+				// ignore?
+			}
 		}
-	}
 
-	req := &dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
-			b.cache.table: writes,
-		},
-	}
-
-	//log.Printf("[dynamodb] worker %d: BatchWriteItemInput: %s", b.id, req.GoString())
-
-	_, err := b.cache.handle.BatchWriteItem(req)
+		return nil
+	})
 
 	if err != nil {
-		b.logBatchInfo()
 		log.Fatal(err.Error())
 	}
 }
 
 func (b *batchTransaction) logBatchInfo() {
-	log.Printf("[dynamodb] worker %d: batch info: %d messages:", b.id, len(b.messages))
+	log.Printf("[cache] worker %d: batch info: %d messages:", b.id, len(b.messages))
 
 	for i, msg := range b.messages {
 		msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
@@ -173,7 +145,7 @@ func (b *batchTransaction) logBatchInfo() {
 		msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
 		msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
 
-		log.Printf("[dynamodb] worker %d: message %2d: id = [%s]  type = [%s]  source = [%s]  operation = [%s]  len(payload) = %d",
+		log.Printf("[cache] worker %d: message %2d: id = [%s]  type = [%s]  source = [%s]  operation = [%s]  len(payload) = %d",
 			b.id, i, msgID, msgType, msgSource, msgOperation, len(msg.message.Payload))
 	}
 }
@@ -190,7 +162,7 @@ func (b *batchTransaction) flushRecords() {
 
 	flush.setStopNow()
 
-	log.Printf("[dynamodb] worker %d: flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
+	log.Printf("[cache] worker %d: flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
 
 	b.queued = 0
 
