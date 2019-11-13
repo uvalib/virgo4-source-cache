@@ -85,7 +85,18 @@ func (b *batchTransaction) queueRecord(msg cacheMessage) {
 	}
 }
 
+func (b *batchTransaction) sortMessages() {
+	sort.SliceStable(b.messages, func(i, j int) bool {
+		idi, _ := b.messages[i].message.GetAttribute(awssqs.AttributeKeyRecordId)
+		idj, _ := b.messages[j].message.GetAttribute(awssqs.AttributeKeyRecordId)
+		return idi < idj
+	})
+}
+
 func (b *batchTransaction) writeMessagesToCache() {
+	// sort messages by id in attempt to prevent deadlocks
+	b.sortMessages()
+
 	// execute a transaction inline
 	// note: commits at the end automatically, or rolls back if error
 	err := b.cache.handle.Transactional(func(tx *dbx.Tx) error {
@@ -111,7 +122,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 				}).Execute()
 
 				if err != nil {
-					log.Printf("[cache] update execution failed: %s", err.Error())
+					log.Printf("[cache] worker %d: update execution failed: %s", b.id, err.Error())
 					return err
 				}
 
@@ -122,7 +133,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 				}).Execute()
 
 				if err != nil {
-					log.Printf("[cache] delete execution failed: %s", err.Error())
+					log.Printf("[cache] worker %d: delete execution failed: %s", b.id, err.Error())
 					return err
 				}
 
@@ -135,7 +146,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 	})
 
 	if err != nil {
-		log.Fatalf("[cache] transaction failed: %s", err.Error())
+		log.Fatalf("[cache] worker %d: transaction failed: %s", b.id, err.Error())
 	}
 }
 
