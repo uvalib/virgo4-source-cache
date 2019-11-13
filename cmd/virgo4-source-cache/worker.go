@@ -62,7 +62,7 @@ func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHa
 		batch := newRate()
 
 		if err := batchDelete(id, aws, queue, msgs); err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf("[delete] deleter %d: %s", id, err.Error())
 		}
 
 		batch.setStopNow()

@@ -33,24 +33,27 @@ func main() {
 	// Get config params and use them to init service context. Any issues are fatal
 	cfg := LoadConfiguration()
 
+	log.Printf("[main] initializing SQS...")
 	// load our AWS_SQS helper object
 	v4sqs, err := awssqs.NewAwsSqs(awssqs.AwsSqsConfig{MessageBucketName: cfg.MessageBucketName})
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	log.Printf("[main] getting queue handle...")
 	// get the queue handles from the queue name
 	inQueueHandle, err := v4sqs.QueueHandle(cfg.InQueueName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// connect to dynamodb
+	// connect to database
+	log.Printf("[main] connecting to postgres...")
 
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=disable",
 		cfg.PostgresUser, cfg.PostgresPass, cfg.PostgresDatabase, cfg.PostgresHost, cfg.PostgresPort)
 
-	db, err := dbx.Open("postgres", connStr)
+	db, err := dbx.MustOpen("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,12 +66,14 @@ func main() {
 		size:   cfg.PostgresBatchSize,
 	}
 
+	log.Printf("[main] starting deleters...")
 	// create the message deletion channel and start deleters
 	deleteChan := make(chan []cacheMessage, cfg.DeleteQueueSize)
 	for d := 1; d <= cfg.Deleters; d++ {
 		go deleter(d, *cfg, v4sqs, inQueueHandle, deleteChan)
 	}
 
+	log.Printf("[main] starting workers...")
 	// create the message processing channel and start workers
 	processChan := make(chan cacheMessage, cfg.WorkerQueueSize)
 	for w := 1; w <= cfg.Workers; w++ {
@@ -83,6 +88,8 @@ func main() {
 	showBacklog := false
 
 	pollTimeout := time.Duration(cfg.PollTimeOut) * time.Second
+
+	log.Printf("[main] starting main polling loop...")
 
 	for {
 		if showBacklog == true {

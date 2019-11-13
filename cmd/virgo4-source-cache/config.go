@@ -40,7 +40,7 @@ func ensureSetAndNonEmpty(env string) string {
 	val := ensureSet(env)
 
 	if val == "" {
-		log.Printf("environment variable not set: [%s]", env)
+		log.Printf("environment variable set but empty: [%s]", env)
 		os.Exit(1)
 	}
 
@@ -93,7 +93,7 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[CONFIG] PostgresHost      = [%s]", cfg.PostgresHost)
 	log.Printf("[CONFIG] PostgresPort      = [%d]", cfg.PostgresPort)
 	log.Printf("[CONFIG] PostgresUser      = [%s]", cfg.PostgresUser)
-	log.Printf("[CONFIG] PostgresPass      = [%s]", cfg.PostgresPass)
+	log.Printf("[CONFIG] PostgresPass      = [REDACTED]")
 	log.Printf("[CONFIG] PostgresDatabase  = [%s]", cfg.PostgresDatabase)
 	log.Printf("[CONFIG] PostgresTable     = [%s]", cfg.PostgresTable)
 	log.Printf("[CONFIG] PostgresBatchSize = [%d]", cfg.PostgresBatchSize)

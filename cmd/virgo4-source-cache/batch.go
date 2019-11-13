@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math"
+	"sort"
 	"strings"
 
 	dbx "github.com/go-ozzo/ozzo-dbx"
@@ -9,7 +12,7 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-const UPSERT = `
+const UPSERT_QUERY = `
 INSERT
 INTO
 	{:table}
@@ -24,7 +27,7 @@ DO
 			= (EXCLUDED.type, EXCLUDED.source, EXCLUDED.payload, EXCLUDED.updated_at)
 `
 
-const DELETE = `
+const DELETE_QUERY = `
 DELETE
 FROM
 	{:table}
@@ -32,10 +35,12 @@ WHERE
 	id = {:id}
 `
 
+var upsertQuery string
+var deleteQuery string
+
 type batchTransaction struct {
 	id          int
 	cache       *cacheService
-	keyMap      map[string]bool
 	queued      int
 	messages    []cacheMessage
 	deleteChan  chan<- []cacheMessage
@@ -43,33 +48,34 @@ type batchTransaction struct {
 	deleteQuery string
 }
 
+func cleanQuery(query string, table string) string {
+	// converts a query to a more compact form
+	// maybe it makes a difference to pq?
+
+	q := query
+
+	q = strings.ReplaceAll(q, "{:table}", table)
+	q = strings.ReplaceAll(q, "\n", " ")
+	q = strings.ReplaceAll(q, "\t", "")
+	q = strings.Trim(q, " ")
+
+	return q
+}
+
 func newBatchTransaction(id int, cache *cacheService, deleteChan chan<- []cacheMessage) *batchTransaction {
 	b := batchTransaction{
 		id:          id,
 		cache:       cache,
-		keyMap:      make(map[string]bool),
 		queued:      0,
 		deleteChan:  deleteChan,
-		upsertQuery: strings.Trim(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(UPSERT, "{:table}", cache.table), "\n", " "), "\t", ""), " "),
-		deleteQuery: strings.Trim(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(DELETE, "{:table}", cache.table), "\n", " "), "\t", ""), " "),
+		upsertQuery: cleanQuery(UPSERT_QUERY, cache.table),
+		deleteQuery: cleanQuery(DELETE_QUERY, cache.table),
 	}
 
 	return &b
 }
 
 func (b *batchTransaction) queueRecord(msg cacheMessage) {
-	// check for duplicate keys, and flush current batch if found (BatchWriteItem doesn't allow duplicates)
-	// FIXME: is this still needed outside of dynamodb?  assuming no, but let's log dups anyway
-
-	msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
-
-	if b.keyMap[msgID] == true {
-		log.Printf("[cache] worker %d: WARNING: received duplicate key: [%s]", b.id, msgID)
-		//b.flushRecords()
-	}
-
-	b.keyMap[msgID] = true
-
 	b.queued++
 
 	b.messages = append(b.messages, msg)
@@ -80,7 +86,8 @@ func (b *batchTransaction) queueRecord(msg cacheMessage) {
 }
 
 func (b *batchTransaction) writeMessagesToCache() {
-	// execute a transaction
+	// execute a transaction inline
+	// note: commits at the end automatically, or rolls back if error
 	err := b.cache.handle.Transactional(func(tx *dbx.Tx) error {
 
 		uq := tx.NewQuery(b.upsertQuery).Prepare()
@@ -108,8 +115,6 @@ func (b *batchTransaction) writeMessagesToCache() {
 					return err
 				}
 
-				//log.Printf("[cache] worker %d: putting id [%s] for [%s] with type [%s] and source [%s]...", b.id, msgID, msgOperation, msgType, msgSource)
-
 			case awssqs.AttributeValueRecordOperationDelete:
 
 				_, err := dq.Bind(dbx.Params{
@@ -121,8 +126,6 @@ func (b *batchTransaction) writeMessagesToCache() {
 					return err
 				}
 
-				//log.Printf("[cache] worker %d: queueing id [%s] for [%s]...", b.id, msgID, msgOperation)
-
 			default:
 				// ignore?
 			}
@@ -132,11 +135,61 @@ func (b *batchTransaction) writeMessagesToCache() {
 	})
 
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatalf("[cache] transaction failed: %s", err.Error())
 	}
 }
 
-func (b *batchTransaction) logBatchInfo() {
+func countMapToString(countMap map[string]int) string {
+	s := []string{}
+
+	for k, v := range countMap {
+		s = append(s, fmt.Sprintf("[%s]: %d", k, v))
+	}
+
+	sort.Strings(s)
+
+	return strings.Join(s, ", ")
+}
+
+func (b *batchTransaction) logBatchSummary() {
+	typeCounts := make(map[string]int)
+	sourceCounts := make(map[string]int)
+	operationCounts := make(map[string]int)
+
+	minPayload := math.MaxInt32
+	maxPayload := math.MinInt32
+
+	for _, msg := range b.messages {
+		msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
+		msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
+		msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
+
+		typeCounts[msgType]++
+		sourceCounts[msgSource]++
+		operationCounts[msgOperation]++
+
+		payloadSize := len(msg.message.Payload)
+		if payloadSize > maxPayload {
+			maxPayload = payloadSize
+		}
+		if payloadSize < minPayload {
+			minPayload = payloadSize
+		}
+	}
+
+	typeStr := countMapToString(typeCounts)
+	sourceStr := countMapToString(sourceCounts)
+	operationStr := countMapToString(operationCounts)
+
+	log.Printf("[cache] worker %d: batch summary:", b.id)
+	log.Printf("[cache] worker %d: messages: %d", b.id, len(b.messages))
+	log.Printf("[cache] worker %d: payloads: min = %d bytes, max = %d bytes", b.id, minPayload, maxPayload)
+	log.Printf("[cache] worker %d: operations: %s", b.id, operationStr)
+	log.Printf("[cache] worker %d: types: %s", b.id, typeStr)
+	log.Printf("[cache] worker %d: sources: %s", b.id, sourceStr)
+}
+
+func (b *batchTransaction) logBatchDetails() {
 	log.Printf("[cache] worker %d: batch info: %d messages:", b.id, len(b.messages))
 
 	for i, msg := range b.messages {
@@ -164,13 +217,13 @@ func (b *batchTransaction) flushRecords() {
 
 	log.Printf("[cache] worker %d: flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
 
+	b.logBatchSummary()
+
 	b.queued = 0
 
 	b.deleteChan <- b.messages
 
 	b.messages = nil
-
-	b.keyMap = make(map[string]bool)
 }
 
 //
