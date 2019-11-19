@@ -19,14 +19,13 @@ phases:
 
   pre_build:
     commands:
-      - latest_build=$(aws --region=$AWS_REGION ssm get-parameter --name /containers/$CONTAINER_IMAGE/latest | grep "Value" | awk -F\" '{print $4}')
       - git clone https://$GITLAB_USER:$GITLAB_TOKEN@gitlab.com/uvalib/terraform-infrastructure.git
 
   build:
     commands:
       - cd $CODEBUILD_SRC_DIR/terraform-infrastructure/virgo4.lib.virginia.edu/ecs-tasks/staging/virgo4-source-cache
       - terraform init
-      - terraform apply -auto-approve -var container_tag=$latest_build
+      - terraform apply -auto-approve
 
 #  post_build:
 #    commands:
