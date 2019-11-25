@@ -50,8 +50,8 @@ func main() {
 	// connect to database
 	log.Printf("[main] connecting to postgres...")
 
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=disable",
-		cfg.PostgresUser, cfg.PostgresPass, cfg.PostgresDatabase, cfg.PostgresHost, cfg.PostgresPort)
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d connect_timeout=%d sslmode=disable",
+		cfg.PostgresUser, cfg.PostgresPass, cfg.PostgresDatabase, cfg.PostgresHost, cfg.PostgresPort, 30)
 
 	db, err := dbx.MustOpen("postgres", connStr)
 	if err != nil {
