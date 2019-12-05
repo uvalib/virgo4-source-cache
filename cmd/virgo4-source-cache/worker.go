@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
@@ -79,11 +82,49 @@ func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHa
 	// should never get here
 }
 
+func intCountMapToString(countMap map[int]int) string {
+	keys := []int{}
+
+	for k := range countMap {
+		keys = append(keys, k)
+	}
+
+	sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+
+	s := []string{}
+
+	for _, v := range keys {
+		s = append(s, fmt.Sprintf(">%ds: %d", v, countMap[v]))
+	}
+
+	return strings.Join(s, "; ")
+}
+
 func batchDelete(id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []cacheMessage) error {
 	// ensure there is work to do
 	count := uint(len(messages))
 	if count == 0 {
 		return nil
+	}
+
+	// log summary of messages that are taking too long to process
+
+	slowMessages := make(map[int]int)
+	slowWindow := 10
+	slowThreshold := 60
+
+	for _, msg := range messages {
+		// slot this message processing duration within in a window of seconds
+		slot := (int(time.Since(msg.received).Seconds()) / slowWindow) * slowWindow
+
+		if slot >= slowThreshold {
+			slowMessages[slot]++
+		}
+	}
+
+	if len(slowMessages) > 0 {
+		log.Printf("[delete] WARNING: %d-message batch contains messages that took more than %d seconds to delete.  Summary: %s",
+			count, slowThreshold, intCountMapToString(slowMessages))
 	}
 
 	//log.Printf( "About to delete block of %d", count )
@@ -132,13 +173,6 @@ func blockDelete(aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []cacheM
 
 	for _, msg := range messages {
 		msgs = append(msgs, msg.message)
-
-		duration := time.Since(msg.received).Seconds()
-
-		if duration > 60 {
-			msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
-			log.Printf("[delete] batch: [%s] WARNING: message %s being deleted after %0.2f seconds", msg.batchID, msgID, duration)
-		}
 	}
 
 	// delete the block

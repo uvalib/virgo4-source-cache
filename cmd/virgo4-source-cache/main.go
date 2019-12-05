@@ -8,6 +8,7 @@ import (
 
 	dbx "github.com/go-ozzo/ozzo-dbx"
 	_ "github.com/lib/pq"
+	"github.com/rs/xid"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
@@ -118,9 +119,8 @@ func main() {
 			if batch.count == 0 {
 				batch.setStart(received)
 
-				batchID = fmt.Sprintf("%d%02d%02d%02d%02d%02d",
-					batch.start.Year(), batch.start.Month(), batch.start.Day(),
-					batch.start.Hour(), batch.start.Minute(), batch.start.Second())
+				guid := xid.New()
+				batchID = guid.String()
 
 				log.Printf("[main] batch: [%s] tracking new batch", batchID)
 			}

@@ -12,7 +12,7 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-const UPSERT_QUERY = `
+const cacheUpsertQuery = `
 INSERT
 INTO
 	{:table}
@@ -27,7 +27,7 @@ DO
 			= (EXCLUDED.type, EXCLUDED.source, EXCLUDED.payload, EXCLUDED.updated_at)
 `
 
-const DELETE_QUERY = `
+const cacheDeleteQuery = `
 DELETE
 FROM
 	{:table}
@@ -68,8 +68,8 @@ func newBatchTransaction(id int, cache *cacheService, deleteChan chan<- []cacheM
 		cache:       cache,
 		queued:      0,
 		deleteChan:  deleteChan,
-		upsertQuery: cleanQuery(UPSERT_QUERY, cache.table),
-		deleteQuery: cleanQuery(DELETE_QUERY, cache.table),
+		upsertQuery: cleanQuery(cacheUpsertQuery, cache.table),
+		deleteQuery: cleanQuery(cacheDeleteQuery, cache.table),
 	}
 
 	return &b
@@ -150,7 +150,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 	}
 }
 
-func countMapToString(countMap map[string]int) string {
+func stringCountMapToString(countMap map[string]int) string {
 	s := []string{}
 
 	for k, v := range countMap {
@@ -191,9 +191,9 @@ func (b *batchTransaction) logBatchSummary() {
 		}
 	}
 
-	typeStr := countMapToString(typeCounts)
-	sourceStr := countMapToString(sourceCounts)
-	operationStr := countMapToString(operationCounts)
+	typeStr := stringCountMapToString(typeCounts)
+	sourceStr := stringCountMapToString(sourceCounts)
+	operationStr := stringCountMapToString(operationCounts)
 
 	log.Printf("[cache] worker %d: [tx] transaction summary:", b.id)
 	log.Printf("        worker %d: [tx] messages: %d", b.id, len(b.messages))
