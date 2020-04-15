@@ -1,13 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
 
-	dbx "github.com/go-ozzo/ozzo-dbx"
-	_ "github.com/lib/pq"
 	"github.com/rs/xid"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
@@ -16,12 +13,6 @@ type cacheMessage struct {
 	message  awssqs.Message // the message
 	received time.Time      // when it was read from the queue
 	batchID  string         // label for this batch, for tracing purposes
-}
-
-type cacheService struct {
-	handle *dbx.DB
-	table  string
-	size   int
 }
 
 //
@@ -48,25 +39,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// connect to database
-	log.Printf("[main] connecting to postgres...")
-
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d connect_timeout=%d sslmode=disable",
-		cfg.PostgresUser, cfg.PostgresPass, cfg.PostgresDatabase, cfg.PostgresHost, cfg.PostgresPort, 30)
-
-	db, err := dbx.MustOpen("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	//db.LogFunc = log.Printf
-
-	cache := cacheService{
-		handle: db,
-		table:  cfg.PostgresTable,
-		size:   cfg.PostgresBatchSize,
-	}
-
 	log.Printf("[main] starting deleters...")
 	// create the message deletion channel and start deleters
 	deleteChan := make(chan []cacheMessage, cfg.DeleteQueueSize)
@@ -78,7 +50,8 @@ func main() {
 	// create the message processing channel and start workers
 	processChan := make(chan cacheMessage, cfg.WorkerQueueSize)
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, &cache, processChan, deleteChan)
+		dbCache := NewDbCache( w, *cfg )
+		go worker(w, *cfg, dbCache, processChan, deleteChan)
 	}
 
 	batch := newRate()
