@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
+	dbx "github.com/go-ozzo/ozzo-dbx"
+	_ "github.com/lib/pq"
+	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"log"
 	"math"
 	"sort"
 	"strings"
-	"time"
-
-	dbx "github.com/go-ozzo/ozzo-dbx"
-	_ "github.com/lib/pq"
-	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
 const cacheUpsertQuery = `
@@ -98,9 +96,6 @@ func (b *batchTransaction) writeMessagesToCache() {
 	// sort messages by id in attempt to prevent deadlocks
 	b.sortMessages()
 
-	// we want to time the operation and log it
-	start := time.Now()
-
 	// execute a transaction inline
 	// note: commits at the end automatically, or rolls back if error
 	err := b.cache.handle.Transactional(func(tx *dbx.Tx) error {
@@ -149,11 +144,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 		return nil
 	})
 
-	if err == nil {
-		count := len( b.messages )
-		duration := time.Since(start)
-		log.Printf("[cache] worker %d: committed %d messages (%0.2f tps)", b.id, count, float64(count)/duration.Seconds())
-	} else {
+	if err != nil {
 		log.Fatalf("[cache] worker %d: transaction failed: %s", b.id, err.Error())
 	}
 }

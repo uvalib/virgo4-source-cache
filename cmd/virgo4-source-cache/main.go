@@ -46,11 +46,13 @@ func main() {
 		go deleter(d, *cfg, v4sqs, inQueueHandle, deleteChan)
 	}
 
+	// goroutine specific instances did not change the performance
+	dbCache := NewDbCache( 1, *cfg )
+
 	log.Printf("[main] starting workers...")
 	// create the message processing channel and start workers
 	processChan := make(chan cacheMessage, cfg.WorkerQueueSize)
 	for w := 1; w <= cfg.Workers; w++ {
-		dbCache := NewDbCache( w, *cfg )
 		go worker(w, *cfg, dbCache, processChan, deleteChan)
 	}
 
