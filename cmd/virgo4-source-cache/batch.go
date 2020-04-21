@@ -34,9 +34,6 @@ WHERE
 	id = {:id}
 `
 
-var upsertQuery string
-var deleteQuery string
-
 type batchTransaction struct {
 	id          int
 	cache       *cacheService
@@ -204,19 +201,19 @@ func (b *batchTransaction) logBatchSummary() {
 	log.Printf("        worker %d: [tx] sources: %s", b.id, sourceStr)
 }
 
-func (b *batchTransaction) logBatchDetails() {
-	log.Printf("[cache] worker %d: transaction info: %d messages:", b.id, len(b.messages))
-
-	for i, msg := range b.messages {
-		msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
-		msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
-		msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
-		msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
-
-		log.Printf("[cache] worker %d: message %2d: id = [%s]  type = [%s]  source = [%s]  operation = [%s]  len(payload) = %d",
-			b.id, i, msgID, msgType, msgSource, msgOperation, len(msg.message.Payload))
-	}
-}
+//func (b *batchTransaction) logBatchDetails() {
+//	log.Printf("[cache] worker %d: transaction info: %d messages:", b.id, len(b.messages))
+//
+//	for i, msg := range b.messages {
+//		msgID, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordId)
+//		msgType, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordType)
+//		msgSource, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordSource)
+//		msgOperation, _ := msg.message.GetAttribute(awssqs.AttributeKeyRecordOperation)
+//
+//		log.Printf("[cache] worker %d: message %2d: id = [%s]  type = [%s]  source = [%s]  operation = [%s]  len(payload) = %d",
+//			b.id, i, msgID, msgType, msgSource, msgOperation, len(msg.message.Payload))
+//	}
+//}
 
 func (b *batchTransaction) flushRecords() {
 	if b.queued == 0 {

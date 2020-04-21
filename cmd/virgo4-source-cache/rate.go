@@ -26,9 +26,9 @@ func (r *rate) setStart(t time.Time) {
 	r.start = t
 }
 
-func (r *rate) setStartNow() {
-	r.setStart(time.Now())
-}
+//func (r *rate) setStartNow() {
+//	r.setStart(time.Now())
+//}
 
 func (r *rate) setStop(t time.Time) {
 	r.stop = t

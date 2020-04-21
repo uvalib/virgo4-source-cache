@@ -3,7 +3,7 @@ module github.com/uvalib/virgo4-source-cache
 go 1.13
 
 require (
-	github.com/aws/aws-sdk-go v1.30.7 // indirect
+	github.com/aws/aws-sdk-go v1.30.11 // indirect
 	github.com/go-ozzo/ozzo-dbx v1.5.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.3.0

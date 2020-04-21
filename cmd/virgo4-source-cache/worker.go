@@ -38,11 +38,9 @@ func worker(id int, cfg ServiceConfig, cache *cacheService, messageChan <-chan c
 			if processed.count%1000 == 0 {
 				log.Printf("[process] worker %d: pipelined %d records", id, processed.count)
 			}
-			break
 
 		case <-time.After(flushAfter):
 			bx.flushRecords()
-			break
 		}
 	}
 

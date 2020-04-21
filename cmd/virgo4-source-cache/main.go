@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// goroutine specific instances did not change the performance
-	dbCache := NewDbCache( 1, *cfg )
+	dbCache := NewDbCache(1, *cfg)
 
 	log.Printf("[main] starting workers...")
 	// create the message processing channel and start workers
