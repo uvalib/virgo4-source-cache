@@ -23,7 +23,7 @@ func worker(id int, cfg ServiceConfig, cache *cacheService, messageChan <-chan c
 		case msg, ok := <-messageChan:
 			if ok == false {
 				// channel was closed
-				log.Printf("[process] worker %d: channel closed; flushing pending cache writes", id)
+				log.Printf("[process] worker %d: INFO: channel closed; flushing pending cache writes", id)
 				bx.flushRecords()
 				return
 			}
@@ -36,7 +36,7 @@ func worker(id int, cfg ServiceConfig, cache *cacheService, messageChan <-chan c
 			processed.incrementCount()
 
 			if processed.count%1000 == 0 {
-				log.Printf("[process] worker %d: pipelined %d records", id, processed.count)
+				log.Printf("[process] worker %d: INFO: pipelined %d records", id, processed.count)
 			}
 
 		case <-time.After(flushAfter):
@@ -56,14 +56,14 @@ func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHa
 
 		if ok == false {
 			// channel was closed
-			log.Printf("[delete] deleter %d: channel closed", id)
+			log.Printf("[delete] deleter %d: INFO: channel closed", id)
 			return
 		}
 
 		batch := newRate()
 
 		if err := batchDelete(id, aws, queue, msgs); err != nil {
-			log.Fatalf("[delete] deleter %d: %s", id, err.Error())
+			log.Fatalf("[delete] deleter %d: FATAL: %s", id, err.Error())
 		}
 
 		batch.setStopNow()
@@ -72,9 +72,9 @@ func deleter(id int, cfg ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHa
 		overallGroups.incrementCount()
 		overallMessages.addCount(batch.count)
 
-		log.Printf("[delete] deleter %d: batch: deleted group of %d messages (%0.2f mps)", id, batch.count, batch.getRate())
+		log.Printf("[delete] deleter %d: INFO: batch deleted group of %d messages (%0.2f mps)", id, batch.count, batch.getRate())
 
-		log.Printf("[delete] deleter %d: overall: deleted %d groups totaling %d messages", id, overallGroups.count, overallMessages.count)
+		log.Printf("[delete] deleter %d: INFO: overall deleted %d groups totaling %d messages", id, overallGroups.count, overallMessages.count)
 	}
 
 	// should never get here

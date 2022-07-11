@@ -118,7 +118,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 				}).Execute()
 
 				if err != nil {
-					log.Printf("[cache] worker %d: update execution failed: %s", b.id, err.Error())
+					log.Printf("[cache] worker %d: ERROR: update execution failed: %s", b.id, err.Error())
 					return err
 				}
 
@@ -129,7 +129,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 				}).Execute()
 
 				if err != nil {
-					log.Printf("[cache] worker %d: delete execution failed: %s", b.id, err.Error())
+					log.Printf("[cache] worker %d: ERROR: delete execution failed: %s", b.id, err.Error())
 					return err
 				}
 
@@ -142,7 +142,7 @@ func (b *batchTransaction) writeMessagesToCache() {
 	})
 
 	if err != nil {
-		log.Fatalf("[cache] worker %d: transaction failed: %s", b.id, err.Error())
+		log.Fatalf("[cache] worker %d: FATAL: transaction failed: %s", b.id, err.Error())
 	}
 }
 
@@ -227,7 +227,7 @@ func (b *batchTransaction) flushRecords() {
 
 	flush.setStopNow()
 
-	log.Printf("[cache] worker %d: flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
+	log.Printf("[cache] worker %d: INFO: flushed %d messages (%0.2f mps)", b.id, flush.count, flush.getRate())
 
 	b.logBatchSummary()
 

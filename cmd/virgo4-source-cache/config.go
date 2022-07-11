@@ -29,7 +29,7 @@ func ensureSet(env string) string {
 	val, set := os.LookupEnv(env)
 
 	if set == false {
-		log.Printf("environment variable not set: [%s]", env)
+		log.Printf("FATAL: environment variable not set: [%s]", env)
 		os.Exit(1)
 	}
 
@@ -40,7 +40,7 @@ func ensureSetAndNonEmpty(env string) string {
 	val := ensureSet(env)
 
 	if val == "" {
-		log.Printf("environment variable set but empty: [%s]", env)
+		log.Printf("FATAL: environment variable set but empty: [%s]", env)
 		os.Exit(1)
 	}
 
