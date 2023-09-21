@@ -15,9 +15,7 @@ type cacheMessage struct {
 	batchID  string         // label for this batch, for tracing purposes
 }
 
-//
 // main entry point
-//
 func main() {
 
 	log.Printf("===> %s service starting up (version: %s) <===", os.Args[0], Version())
