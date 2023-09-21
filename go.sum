@@ -1,7 +1,8 @@
 github.com/aws/aws-sdk-go v1.44.20/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/aws/aws-sdk-go v1.44.23/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
-github.com/aws/aws-sdk-go v1.44.261 h1:PcTMX/QVk+P3yh2n34UzuXDF5FS2z5Lse2bt+r3IpU4=
-github.com/aws/aws-sdk-go v1.44.261/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.292/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.45.14 h1:/IPMEh9oelbK7506fdMHkbV9mq4a6f5aeiy9OT0PRKw=
+github.com/aws/aws-sdk-go v1.45.14/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-ozzo/ozzo-dbx v1.5.0 h1:QPJOdFDKoJYlDLN7QczZ+uYUoIQD5gaiCvytCUMtSoE=
@@ -10,8 +11,9 @@ github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG
 github.com/go-sql-driver/mysql v1.5.0 h1:ozyZYNQW3x3HtqT1jira07DN2PArx2v7/mN66gGcHOs=
 github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
-github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/google/uuid v1.3.1 h1:KjJaJ9iWZ3jOFZIf1Lqf4laDRCasjl0BCmnEGxkdLb4=
+github.com/google/uuid v1.3.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGwWFoC7ycTf1rcQZHOlsJ6N8=
@@ -27,8 +29,9 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/stretchr/testify v1.5.1 h1:nOGnQDM7FYENwehXlg/kFVnos3rEvtKTjRvOWSzb6H4=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
-github.com/uvalib/uva-aws-s3-sdk/uva-s3 v0.0.0-20220527134326-5f592a4b5fe9 h1:NALenztL3FRBsNHKaK0XO7sstcFONKiVTWaEvt7qNXs=
 github.com/uvalib/uva-aws-s3-sdk/uva-s3 v0.0.0-20220527134326-5f592a4b5fe9/go.mod h1:DGR3T5AKmH+pl8suvQ5bykGn7pBWcuHRTvOfz5NpnY4=
+github.com/uvalib/uva-aws-s3-sdk/uva-s3 v0.0.0-20230629155400-76eacc6bce83 h1:zXrCRzGk3JvY+2aDQovnwg7CB8HTDWAUAue9e3o+JNg=
+github.com/uvalib/uva-aws-s3-sdk/uva-s3 v0.0.0-20230629155400-76eacc6bce83/go.mod h1:f52eOPgLE8HhzwF3nY/1yFbuDng2cxmh+Bw6u9yN7nw=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20220527142204-5974a96aa593 h1:A/FsL54MlvH2HXjidRBRwuRf3wEDcl16qVhDKAvjtnc=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20220527142204-5974a96aa593/go.mod h1:Xb+RE29RYvUtkcylRfZg+VcmRI9Uq1tp6M+/UvjFVJw=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
