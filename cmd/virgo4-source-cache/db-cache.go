@@ -20,7 +20,7 @@ func NewDbCache(id int, cfg ServiceConfig) *cacheService {
 	// connect to database
 	log.Printf("[main] creating postgres connection %d", id)
 
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d connect_timeout=%d sslmode=disable",
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d connect_timeout=%d",
 		cfg.PostgresUser, cfg.PostgresPass, cfg.PostgresDatabase, cfg.PostgresHost, cfg.PostgresPort, 30)
 
 	db, err := dbx.MustOpen("postgres", connStr)
