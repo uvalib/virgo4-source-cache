@@ -27,7 +27,7 @@ ENV TZ=UTC
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Specify home 
-ENV APP_HOME /virgo4-source-cache
+ENV APP_HOME=/virgo4-source-cache
 WORKDIR $APP_HOME
 
 # Create necessary directories
@@ -35,7 +35,7 @@ RUN mkdir -p $APP_HOME $APP_HOME/bin $APP_HOME/scripts $APP_HOME/db/migrations
 RUN chown -R webservice $APP_HOME && chgrp -R webservice $APP_HOME
 
 # add the migrate tool
-ENV MIGRATE_VERSION v4.17.1
+ENV MIGRATE_VERSION=v4.18.1
 RUN cd $APP_HOME/bin && curl -L https://github.com/golang-migrate/migrate/releases/download/${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz | tar xvz && rm LICENSE README.md
 
 # run command
